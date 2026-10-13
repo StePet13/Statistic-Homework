@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECC Cryptographic Analysis Pipeline</title>
+<!-- Google Fonts for a modern look -->
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-main: #050b14;
+    --bg-panel: #0d1525;
+    --bg-box: #162032;
+    --border: #243147;
+    --text-main: #cbd5e1;
+    --accent-cyan: #00f0ff;
+    --accent-blue: #3b82f6;
+    --accent-pink: #ff0055;
+    --accent-yellow: #f59e0b;
+  }
+  
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-main); color: var(--text-main); margin: 0; padding: 25px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  
+  .mono { font-family: 'Fira Code', monospace; }
+  h1 { font-size: 1.6em; color: white; margin: 0 0 5px; font-weight: 800; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent-cyan); }
+  .sub { color: #94a3b8; font-size: 14px; margin-bottom: 30px; font-weight: 400; }
+  
+  .app { display: grid; grid-template-columns: 520px 1fr; gap: 25px; max-width: 1300px; width: 100%; margin-bottom: 25px; }
+  
+  canvas { 
+    background: var(--bg-panel); border-radius: 16px; border: 1px solid var(--border); 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+  }
+  
+  .panel {
+    background: var(--bg-panel); border-radius: 16px; border: 1px solid var(--border);
+    padding: 20px; font-size: 13px; line-height: 1.6; margin-bottom: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .panel h3 { 
+    margin: 0 0 15px; color: white; font-size: 14px; text-transform: uppercase; 
+    letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 10px; 
+  }
+  
+  .trace-container { max-height: 220px; overflow-y: auto; padding-right: 5px; }
+  .trace-container::-webkit-scrollbar { width: 6px; }
+  .trace-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .step { padding: 8px 12px; margin: 5px 0; border-radius: 8px; background: var(--bg-box); border-left: 4px solid var(--border); transition: all 0.2s; }
+  .step.active { background: #132742; border-left-color: var(--accent-cyan); box-shadow: 0 0 15px rgba(0, 240, 255, 0.1); }
+  .step.final { border-left-color: var(--accent-pink); background: #301121; }
+  
+  .coord { color: var(--accent-yellow); font-weight: 600; }
+  .hl { color: var(--accent-cyan); font-weight: 600; }
+  
+  .controls { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; }
+  
+  button {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+    color: #000; border: none; padding: 9px 18px; border-radius: 8px; 
+    font-family: inherit; font-weight: 800; font-size: 13px; cursor: pointer; 
+    transition: all 0.2s; box-shadow: 0 4px 15px rgba(0, 240, 255, 0.3);
+  }
+  button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 240, 255, 0.4); }
+  button.secondary { background: var(--bg-box); color: var(--text-main); border: 1px solid var(--border); box-shadow: none; }
+  button.secondary:hover { background: var(--border); }
+  button.danger { background: linear-gradient(135deg, #ff0055, #ff5577); color: white; box-shadow: 0 4px 15px rgba(255, 0, 85, 0.3); }
+  
+  input[type=range] { width: 140px; cursor: pointer; accent-color: var(--accent-cyan); }
+  select { background: var(--bg-box); color: white; border: 1px solid var(--border); padding: 8px; border-radius: 8px; font-family: inherit; cursor: pointer; outline: none; }
+  
+  /* STATS UI */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .stat-box { background: var(--bg-box); padding: 18px; border-radius: 12px; border: 1px solid var(--border); }
+  .stat-box h4 { margin: 0 0 10px 0; color: white; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+  .stat-box h4 span { font-size: 10px; background: var(--border); padding: 3px 6px; border-radius: 4px; color: var(--accent-cyan); }
+  .big-num { font-size: 28px; font-weight: 800; color: var(--accent-cyan); margin: 5px 0 10px; display: block; }
+  
+  /* CSS BAR CHARTS */
+  .charts-row { display: flex; gap: 20px; margin-top: 15px; }
+  .chart-wrapper { flex: 1; background: #0b101a; padding: 15px; border-radius: 8px; border: 1px dashed var(--border); }
+  .chart-title { text-align: center; font-size: 11px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .bar-container { display: flex; align-items: flex-end; justify-content: space-around; height: 80px; border-bottom: 1px solid var(--border); padding-bottom: 2px; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 14px; }
+  .bar { width: 100%; background: var(--accent-blue); border-radius: 3px 3px 0 0; transition: height 0.5s ease-out; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
+  .bar-val { font-size: 9px; color: white; font-weight: bold; }
+  .bar-lbl { font-size: 9px; color: #64748b; margin-top: 2px; }
+
+  .theory { color: #94a3b8; margin-top: 20px; font-size: 13px; border-top: 1px dashed var(--border); padding-top: 20px; line-height: 1.7; }
+  .theory span { color: white; font-weight: 600; }
+  ul { margin: 10px 0; padding-left: 20px; }
+  li { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<h1>ECC Cryptographic <span>Analysis Pipeline</span></h1>
+<div class="sub">Curve: y² = x³ + 7 (mod 17) &nbsp;·&nbsp; Simplified secp256k1 model (Ethereum)</div>
+
+<div class="app">
+  <div>
+    <canvas id="cv" width="520" height="520"></canvas>
+  </div>
+
+  <div style="display: flex; flex-direction: column;">
+    <div class="panel">
+      <h3>Control Panel</h3>
+      <div class="controls">
+        <label style="font-weight: 600;">k = <span id="kVal" style="color:var(--accent-cyan); font-size: 16px; display:inline-block; width:20px; text-align:center;">6</span></label>
+        <input type="range" id="kSlider" min="1" max="9" value="6">
+        <button id="playBtn">▶ Play Algorithm</button>
+        <button id="resetBtn" class="secondary">↺ Reset</button>
+      </div>
+      <div class="controls">
+        <label style="font-weight: 600;">Base Point G:</label>
+        <select id="gSelect"></select>
+        <button id="statsBtn" class="danger" style="margin-left:auto;">🔬 Run Statistical Analysis</button>
+      </div>
+    </div>
+
+    <div class="panel" style="flex-grow: 1;">
+      <h3>Arithmetic Trace (Modulo 17)</h3>
+      <div id="math" class="mono" style="min-height: 85px; margin-bottom: 15px; background: var(--bg-box); padding: 12px; border-radius: 8px; font-size: 12px; border: 1px solid var(--border);"></div>
+      <div id="trace" class="trace-container mono" style="font-size: 12px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="width: 100%; max-width: 1300px; display: none;" id="statsPanel">
+  <h3>Statistical Exploration & Cryptographic Tests (Field: F₁₇)</h3>
+  
+  <div class="stats-grid">
+    <div class="stat-box" id="distBox">
+      <!-- Generated dynamically -->
+    </div>
+    <div class="stat-box">
+      <h4>Linear Correlation (Pearson) <span>k vs X</span></h4>
+      <span class="big-num" id="pearsonVal">0.000</span>
+      <div class="mono" style="font-size:11px; color:#94a3b8; margin-bottom:10px;">Formula: ρ = Cov(k,X) / (σk · σX)</div>
+      Interpretation: <span style="color:white;">Absence of linear correlation (ρ ≈ 0)</span>. The output "jumps" unpredictably with respect to the input, satisfying the primary requirement for the hardness of the Elliptic Curve Discrete Logarithm Problem (ECDLP).
+    </div>
+    <div class="stat-box">
+      <h4>True Avalanche Test <span>1-bit flip input</span></h4>
+      <span class="big-num" id="avalancheVal">0.00 bit</span>
+      <div class="mono" style="font-size:11px; color:#94a3b8; margin-bottom:10px;">Hamming Distances (X): <span id="avalancheArr"></span></div>
+      Interpretation: Unlike a pure Hash (like Keccak-256), in ECC <span style="color:white;">there is no true avalanche effect</span> across all bits. The variation is simply the algebraic trace of adding/subtracting the base point G.
+    </div>
+    <div class="stat-box" id="bitBox">
+      <!-- Generated dynamically -->
+    </div>
+  </div>
+
+  <div class="theory">
+    <span>Critical Discussion (One-Way Function vs Cryptographic Hash):</span><br><br>
+    The empirical results of this dashboard demonstrate the fundamental differences between an algebraic one-way function (ECC) and a PRF (Pseudo-Random Function / Hash).
+    <ul>
+      <li><span>Preserved Algebraic Structure (No Pure Avalanche):</span> The Avalanche test clearly shows that changing a single bit of $k$ does not cause the output to change chaotically (flipping ~50% of the bits). Changing the LSB of $k$ is equivalent to algebraically adding or subtracting $G$.</li>
+      <li><span>Security based on Computational Hardness:</span> In a perfect Hash, no polynomial statistical test should be able to distinguish the output from a random sequence. In ECC, a trivial polynomial test like verifying the equation $Q_1 + Q_2 = Q_3$ immediately reveals the underlying algebraic structure.</li>
+      <li><span>Separation of Concerns in Ethereum:</span> This is why Ethereum doesn't rely solely on the elliptic curve. It uses ECC for signing (where the algebraic homomorphism is necessary for the ECDSA algorithm), but then it "hashes" the resulting public key through <b>Keccak-256</b> to destroy the algebraic structure and ensure a true <i>Avalanche Effect</i> before generating the final address.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// --- MATH & ECC CORE ---
+const p = 17n;
+const A = 0n, B = 7n;
+const INF = null;
+const mod = (n, m = p) => ((n % m) + m) % m;
+
+function modInv(a, m = p) {
+  a = mod(a, m); if (a === 0n) throw new Error("No inverse of 0");
+  let [r0, r1] = [a, m], [s0, s1] = [1n, 0n];
+  while (r1 !== 0n) {
+    const q = r0 / r1; [r0, r1] = [r1, r0 - q * r1]; [s0, s1] = [s1, s0 - q * s1];
+  }
+  return mod(s0, m);
+}
+
+function pointAdd(P, Q) {
+  if (P === INF) return Q; if (Q === INF) return P;
+  if (P.x === Q.x && mod(P.y + Q.y) === 0n) return INF;
+  let lambda;
+  if (P.x === Q.x && P.y === Q.y) lambda = mod((3n * P.x * P.x + A) * modInv(2n * P.y));
+  else lambda = mod((Q.y - P.y) * modInv(Q.x - P.x));
+  const x3 = mod(lambda * lambda - P.x - Q.x);
+  const y3 = mod(lambda * (P.x - x3) - P.y);
+  return { x: x3, y: y3 };
+}
+
+function scalarMult(k, P) {
+  let R = INF, Q = P, kBig = BigInt(k);
+  while (kBig > 0n) {
+    if (kBig & 1n) R = pointAdd(R, Q);
+    Q = pointAdd(Q, Q); kBig >>= 1n;
+  }
+  return R;
+}
+
+function allPoints() {
+  const pts = [];
+  for (let x = 0n; x < p; x++) {
+    const rhs = mod(x*x*x + A*x + B);
+    for (let y = 0n; y < p; y++) if (mod(y*y) === rhs) pts.push({ x, y });
+  }
+  return pts;
+}
+const CURVE_POINTS = allPoints();
+
+function pointOrder(P) {
+  let Q = P, n = 1n;
+  while (Q !== INF) { Q = pointAdd(Q, P); n++; }
+  return n;
+}
+
+// --- RENDER & STATE ---
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const SIZE = 520, MARGIN = 40, scale = (SIZE - 2*MARGIN) / 17;
+const toPx = (x, y) => [MARGIN + Number(x)*scale, SIZE - MARGIN - Number(y)*scale];
+
+let G = { x: 1n, y: 5n };
+let k = 6n;
+let orderG = 9n;
+let sequence = [], currentStep = -1;
+let playing = false, timer = null;
+
+function drawGrid() {
+  ctx.clearRect(0, 0, SIZE, SIZE);
+  ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+  ctx.shadowBlur = 0;
+  
+  for (let i = 0; i <= 17; i++) {
+    const [px] = toPx(BigInt(i), 0n); const [, py] = toPx(0n, BigInt(i));
+    ctx.beginPath(); ctx.moveTo(px, MARGIN-10); ctx.lineTo(px, SIZE-MARGIN+10); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(MARGIN-10, py); ctx.lineTo(SIZE-MARGIN+10, py); ctx.stroke();
+  }
+  
+  ctx.fillStyle = '#475569'; ctx.font = '10px Inter';
+  for (let i = 0; i < 17; i += 2) {
+    const [px] = toPx(BigInt(i), 0n); const [, py] = toPx(0n, BigInt(i));
+    ctx.fillText(i, px - 3, SIZE - MARGIN + 25);
+    ctx.fillText(i, MARGIN - 25, py + 3);
+  }
+}
+
+function drawPoint(P, color, radius = 5, label = '', blur = 0) {
+  if (P === INF) return;
+  const [px, py] = toPx(P.x, P.y);
+  
+  ctx.beginPath(); ctx.arc(px, py, radius, 0, 2*Math.PI);
+  ctx.fillStyle = color;
+  
+  ctx.shadowBlur = blur;
+  ctx.shadowColor = color;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  
+  if (label) { 
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Inter'; 
+    ctx.fillText(label, px + 10, py - 10); 
+  }
+}
+
+function buildSequence() {
+  sequence = [G];
+  let acc = G;
+  for (let i = 2n; i <= k; i++) { acc = pointAdd(acc, G); sequence.push(acc); }
+}
+
+function renderStatic() {
+  drawGrid();
+  for (const P of CURVE_POINTS) drawPoint(P, '#334155', 3);
+  for (let i = 0; i <= currentStep && i < sequence.length; i++) {
+    const isLast = (i === currentStep);
+    const isFinal = (isLast && i === sequence.length - 1);
+    const color = isFinal ? '#ff0055' : '#00f0ff';
+    drawPoint(sequence[i], color, isLast ? 7 : 5, `${i+1}G`, isLast ? 15 : 8);
+  }
+}
+
+function updateMath(P, Q, R, isDoubling) {
+  const m = document.getElementById('math');
+  if (!R) { m.innerHTML = '<span style="color:#64748b">Waiting... Press "Play Algorithm"</span>'; return; }
+  if (R === INF) { m.innerHTML = `<span class="hl">P + (-P) = O</span> <br><span style="color:#64748b">Vertical asymptote, reaching the Point at Infinity.</span>`; return; }
+  let num = isDoubling ? mod(3n * P.x * P.x + A) : mod(Q.y - P.y);
+  let den = isDoubling ? mod(2n * P.y) : mod(Q.x - P.x);
+  let lambdaVal = mod(num * modInv(den));
+  m.innerHTML = `
+    <div style="margin-bottom:6px"><span class="hl">${isDoubling ? 'Doubling (2P)' : 'Addition (P+Q)'}</span> &nbsp;→&nbsp; λ ≡ ${num} · ${den}⁻¹ ≡ <span class="coord">${lambdaVal}</span></div>
+    <div>x₃ ≡ λ² − x₁ − x₂ ≡ <span class="coord">${R.x}</span> &nbsp;&nbsp;|&nbsp;&nbsp; y₃ ≡ λ(x₁ − x₃) − y₁ ≡ <span class="coord">${R.y}</span></div>`;
+}
+
+function showStep(i) {
+  currentStep = i; renderStatic();
+  const t = document.getElementById('trace');
+  t.innerHTML = sequence.map((P, idx) => `<div class="step ${idx === currentStep ? (idx === sequence.length-1 ? 'final' : 'active') : ''}"><span style="color:#94a3b8">${idx+1}G =</span> <span class="coord">${P===INF ? 'O' : `(${P.x},${P.y})`}</span></div>`).join('');
+  if(i > 0) updateMath(sequence[i-1], G, sequence[i], sequence[i-1].x === G.x && sequence[i-1].y === G.y);
+}
+
+// --- ADVANCED STATS ---
+function bitCount(n) { let c = 0; while(n > 0) { c += n & 1; n >>= 1; } return c; }
+
+function createBarChart(freqObj, maxDomain) {
+  let maxFreq = Math.max(...Object.values(freqObj), 1);
+  let html = `<div class="bar-container">`;
+  for(let i = 0; i <= maxDomain; i++) {
+    let f = freqObj[i] || 0;
+    let h = (f / maxFreq) * 100;
+    let color = f > 0 ? 'var(--accent-blue)' : 'transparent';
+    html += `
+      <div class="bar-col">
+        <div class="bar-val" style="color: ${f>0 ? '#fff' : 'transparent'}">${f}</div>
+        <div class="bar" style="height: ${h}%; background: ${color}"></div>
+        <div class="bar-lbl">${i}</div>
+      </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function runStats() {
+  document.getElementById('statsPanel').style.display = 'block';
+  let seq = [];
+  for(let i=1n; i<orderG; i++) seq.push({ k: Number(i), pt: scalarMult(i, G) });
+  
+  // 1. Chi-Square & Charts
+  let xs = seq.map(s => Number(s.pt.x));
+  let ys = seq.map(s => Number(s.pt.y));
+  let freqX = {}; xs.forEach(x => freqX[x] = (freqX[x] || 0) + 1);
+  let freqY = {}; ys.forEach(y => freqY[y] = (freqY[y] || 0) + 1);
+  
+  let expected = (Number(orderG) - 1) / Number(p);
+  let chiSq = 0;
+  for(let i=0; i<Number(p); i++) {
+    let obs = freqX[i] || 0;
+    if(expected > 0) chiSq += Math.pow(obs - expected, 2) / expected;
+  }
+  
+  document.getElementById('distBox').innerHTML = `
+    <h4>Coordinate Distribution <span>χ² Test: ${chiSq.toFixed(2)}</span></h4>
+    <div class="charts-row">
+      <div class="chart-wrapper">
+        <div class="chart-title">X Frequency</div>
+        ${createBarChart(freqX, 16)}
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-title">Y Frequency</div>
+        ${createBarChart(freqY, 16)}
+      </div>
+    </div>
+  `;
+
+  // 2. Pearson
+  let n = xs.length;
+  let sumK = seq.reduce((acc, s) => acc + s.k, 0), sumX = xs.reduce((acc, x) => acc + x, 0);
+  let sumK2 = seq.reduce((acc, s) => acc + s.k*s.k, 0), sumX2 = xs.reduce((acc, x) => acc + x*x, 0);
+  let sumKX = seq.reduce((acc, s, idx) => acc + s.k*xs[idx], 0);
+  let numerator = n * sumKX - sumK * sumX;
+  let den = Math.sqrt((n * sumK2 - sumK*sumK) * (n * sumX2 - sumX*sumX));
+  let pearson = den === 0 ? 0 : numerator / den;
+  document.getElementById('pearsonVal').innerText = pearson.toFixed(4);
+
+  // 3. Avalanche Test
+  let avalancheDist = [];
+  for(let s of seq) {
+    let kFlip = BigInt(s.k ^ 1);
+    if(kFlip > 0n && kFlip < orderG) {
+      let ptFlip = scalarMult(kFlip, G);
+      avalancheDist.push(bitCount(Number(s.pt.x) ^ Number(ptFlip.x)));
+    }
+  }
+  let avgAv = avalancheDist.reduce((a,b)=>a+b,0) / avalancheDist.length;
+  document.getElementById('avalancheVal').innerText = `${avgAv.toFixed(2)} bit`;
+  document.getElementById('avalancheArr').innerText = `[${avalancheDist.join(', ')}]`;
+
+  // 4. Bit Distribution
+  let pBits = 5;
+  let totalBits = xs.length * pBits;
+  let ones = xs.reduce((acc, x) => acc + bitCount(x), 0);
+  let zeroes = totalBits - ones;
+  let pctOnes = ((ones/totalBits)*100).toFixed(1);
+  let pctZeroes = ((zeroes/totalBits)*100).toFixed(1);
+  
+  document.getElementById('bitBox').innerHTML = `
+    <h4>Bit Distribution (X Coord) <span>Out of ${totalBits} total bits</span></h4>
+    <div style="margin-top:15px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-weight:bold;">
+        <span style="color:#00f0ff">Bit '1': ${ones} (${pctOnes}%)</span>
+        <span style="color:#94a3b8">Bit '0': ${zeroes} (${pctZeroes}%)</span>
+      </div>
+      <div style="width:100%; height:12px; background:#1e293b; border-radius:6px; overflow:hidden; display:flex;">
+        <div style="width:${pctOnes}%; background:var(--accent-cyan);"></div>
+        <div style="width:${pctZeroes}%; background:#475569;"></div>
+      </div>
+      <div style="margin-top:20px; font-size:12px; color:#94a3b8;">
+        In a <b>CSPRNG</b>, we would expect an exact 50/50 split. In elliptic curves, the bit distribution mirrors the distribution of <i>quadratic residues</i> in the finite field, making ECC cryptographically distinguishable from pure randomness.
+      </div>
+    </div>
+  `;
+}
+
+// --- INIT & EVENTS ---
+document.getElementById('kSlider').oninput = e => { k = BigInt(e.target.value); document.getElementById('kVal').innerText = k; buildSequence(); showStep(sequence.length-1); };
+document.getElementById('gSelect').onchange = e => { const [x,y] = e.target.value.split(',').map(BigInt); G = {x,y}; init(); };
+document.getElementById('statsBtn').onclick = () => { runStats(); setTimeout(()=>window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}), 200); };
+
+document.getElementById('playBtn').onclick = () => {
+  if (playing) { playing = false; document.getElementById('playBtn').innerText = '▶ Play Algorithm'; clearTimeout(timer); return; }
+  playing = true; document.getElementById('playBtn').innerHTML = '<b>❚❚</b> Pause';
+  if (currentStep >= sequence.length - 1) currentStep = -1;
+  const tick = () => {
+    if (!playing) return; currentStep++;
+    if (currentStep >= sequence.length) { playing = false; document.getElementById('playBtn').innerText = '▶ Play Algorithm'; return; }
+    showStep(currentStep); timer = setTimeout(tick, 700);
+  };
+  tick();
+};
+
+document.getElementById('resetBtn').onclick = () => { playing = false; clearTimeout(timer); init(); document.getElementById('statsPanel').style.display='none'; document.getElementById('playBtn').innerText = '▶ Play Algorithm'; };
+
+function init() {
+  orderG = pointOrder(G);
+  const kSlider = document.getElementById('kSlider');
+  kSlider.max = Number(orderG);
+  if(k > orderG) k = orderG;
+  kSlider.value = k; document.getElementById('kVal').innerText = k;
+  
+  const gSel = document.getElementById('gSelect');
+  gSel.innerHTML = CURVE_POINTS.map(P => `<option value="${P.x},${P.y}" ${P.x===G.x && P.y===G.y ? 'selected':''}>(${P.x}, ${P.y})</option>`).join('');
+  
+  buildSequence(); showStep(sequence.length-1);
+}
+init();
+</script>
+</body>
+</html>
