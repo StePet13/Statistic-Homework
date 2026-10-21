@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Homework 2 — ECC Cryptosystem & Caesar Cryptanalysis</title>
+
+<!-- MathJax per il rendering delle formule in LaTeX -->
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['[', ']']]
+    }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: #0a0e17; color: #e6f1ff; margin: 0; padding: 20px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  h1 { font-size: 1.5em; color: #64ffda; letter-spacing: 1px; margin: 0 0 6px; }
+  .sub { color: #8892b0; font-size: 13px; margin-bottom: 24px; text-align: center; max-width: 800px;}
+  .container { max-width: 1350px; width: 100%; display: flex; flex-direction: column; gap: 20px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel {
+    background: #0d1420; border-radius: 12px; border: 1px solid #1e2a3a;
+    padding: 20px; font-size: 12px; line-height: 1.6;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  }
+  .panel h2 {
+    margin: 0 0 16px; color: #64ffda; font-size: 14px; text-transform: uppercase;
+    letter-spacing: 1px; border-bottom: 1px solid #1e2a3a; padding-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tag { background: #121c2c; padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #ffd166; border: 1px solid #1e2a3a; text-transform: none; letter-spacing: 0;}
+  label { color: #8892b0; display: block; margin-bottom: 6px; font-weight: bold; font-size: 11px; }
+  textarea, input[type=text], select, input[type=number] {
+    width: 100%; background: #121c2c; color: #e6f1ff; border: 1px solid #1e2a3a;
+    padding: 8px 10px; border-radius: 6px; font-family: inherit; font-size: 12px;
+    margin-bottom: 14px; outline: none; transition: border 0.2s;
+  }
+  textarea:focus, input:focus, select:focus { border-color: #64ffda; }
+  .controls-row { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+  button {
+    background: #64ffda; color: #0a0e17; border: none; padding: 8px 16px;
+    border-radius: 6px; font-family: inherit; font-weight: bold; cursor: pointer; transition: all .15s;
+    font-size: 12px; display: inline-flex; align-items: center; gap: 6px;
+  }
+  button:hover:not(:disabled) { background: #7fffdd; transform: translateY(-1px); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.danger { background: #ff5577; color: #fff; }
+  button.danger:hover:not(:disabled) { background: #ff7799; }
+  button.secondary { background: #1e2a3a; color: #64ffda; border: 1px solid #64ffda; }
+  button.secondary:hover:not(:disabled) { background: #2a3a4a; }
+  
+  .box-out {
+    background: #121c2c; border-radius: 6px; padding: 10px; border: 1px solid #1e2a3a;
+    font-family: inherit; word-break: break-all; margin-bottom: 12px; font-size: 11px; min-height: 40px;
+  }
+  .val { color: #ffd166; font-weight: bold; }
+  .math-hl { color: #64ffda; font-weight: bold; }
+  
+  table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
+  th, td { border: 1px solid #1e2a3a; padding: 8px; text-align: left; }
+  th { background: #121c2c; color: #ffd166; font-weight: bold; }
+  
+  /* Charts */
+  .chart-container { display: flex; align-items: flex-end; gap: 4px; height: 140px; margin: 15px 0 5px; background: #121c2c; padding: 10px; border-radius: 6px; border: 1px solid #1e2a3a; }
+  .bar-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; height: 100%; }
+  .bar { width: 100%; background: #64ffda; border-radius: 2px 2px 0 0; transition: height .3s; }
+  .bar-label-top { font-size: 9px; color: #e6f1ff; font-weight: bold; }
+  .bar-label-bottom { font-size: 9px; color: #8892b0; margin-top: 4px; }
+  
+  .theory-box { color: #a0aec0; line-height: 1.6; font-size: 12px; background: #121c2c; padding: 15px; border-radius: 8px; border: 1px solid #1e2a3a;}
+  .theory-box ul { margin: 8px 0 12px; padding-left: 20px; }
+  .theory-box strong { color: #64ffda; }
+  .theory-box h4 { margin: 0 0 8px 0; color: #ffd166; font-size: 13px; }
+
+  .curve-toggle { display: flex; background: #121c2c; border-radius: 6px; border: 1px solid #1e2a3a; overflow: hidden; margin-bottom: 15px; width: fit-content;}
+  .curve-toggle button { background: transparent; color: #8892b0; border: none; padding: 8px 16px; font-weight: normal; border-radius: 0; }
+  .curve-toggle button.active { background: #64ffda; color: #0a0e17; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>◈ CryptoSuite: ECC & Caesar Complete Analysis ◈</h1>
+<div class="sub">Homework 2 · Toy-ECC Scheme Implementation, Caesar Statistical Break, Length Sensitivity Empirical Testing, and Cryptanalysis Theoretical Review</div>
+
+<div class="container">
+
+  <!-- SECTION 1: ECC ENCRYPTION -->
+  <div class="panel">
+    <h2>
+      <span>1. Elliptic Curve Scheme (ECIES Variant)</span> 
+      <span class="tag">Asymmetric Cryptography</span>
+    </h2>
+    
+    <div class="curve-toggle">
+      <button id="btnCurveToy" class="active">Part 1: Toy Curve ($y^2 \equiv x^3 + 7 \pmod{17}$)</button>
+      <button id="btnCurveReal">Part 2: Real secp256k1</button>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <label>Alice's Plaintext Message:</label>
+        <input type="text" id="eccPlain" value="ATTACKATDAWN">
+        
+        <div class="controls-row">
+          <div style="flex:1;">
+            <label>Bob's Private Key ($d_B$):</label>
+            <input type="number" id="eccPrivKey" value="4">
+          </div>
+          <div style="flex:1;">
+            <label>Alice's Ephemeral Nonce ($k$):</label>
+            <input type="number" id="eccNonce" value="7">
+          </div>
+        </div>
+        <button id="eccRunBtn">🔒 Encrypt & Decrypt Flow</button>
+      </div>
+
+      <div>
+        <label>Cryptographic Trace:</label>
+        <div class="box-out" id="eccTrace" style="min-height: 135px; font-size: 10px;">
+          Waiting for execution...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: CAESAR & STATISTICAL CRYPTANALYSIS -->
+  <div class="panel">
+    <h2>
+      <span>2. Caesar Cipher & Frequency Analysis ($\chi^2$)</span>
+      <span class="tag">Symmetric Monoalphabetic</span>
+    </h2>
+    <div class="grid-2">
+      <div>
+        <label>Ciphertext Corpus:</label>
+        <textarea id="caesarInput" rows="4">DWWDFNDWGDZQZLWKWKHDOSKDTXDGURO</textarea>
+        <div class="controls-row">
+          <div style="flex:1;">
+            <label>Expected Language:</label>
+            <select id="caesarLang">
+              <option value="EN">English</option>
+              <option value="IT">Italian</option>
+            </select>
+          </div>
+          <button id="caesarCrackBtn" class="danger" style="margin-top: 14px;">⚡ Execute $\chi^2$ Attack</button>
+        </div>
+        <div class="box-out" id="caesarResult">Attack results will appear here.</div>
+      </div>
+
+      <!-- LENGTH SENSITIVITY EXPERIMENT -->
+      <div>
+        <label>Empirical Length Sensitivity Test ($N=100$ iterations per length):</label>
+        <p style="margin-top:0; font-size: 11px; color: #8892b0;">
+          Evaluates how ciphertext length affects the success rate of the $\chi^2$ statistical attack. A long base corpus is truncated using a random offset, encrypted with random shifts, and attacked. deterministic PRNG ensures reproducibility.
+        </p>
+        <button id="runLengthExpBtn" class="secondary">🔬 Run Length Experiment</button>
+        
+        <div class="chart-container" id="lengthChart">
+          <!-- Chart generated via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: ATTACKS ON ECC (TOY SPACE) -->
+  <div class="panel">
+    <h2>
+      <span>3. ECDLP Key-Recovery Attack</span>
+      <span class="tag">Restricted Entropy Exploitation</span>
+    </h2>
+    <p style="margin-top:0; color:#8892b0; font-size: 11px;">
+      Because the Toy Curve has a tiny subgroup order ($N=9$), or if the private key space is restricted, an attacker intercepting the public key $Q_B = d_B \cdot G$ can recover $d_B$ algebraically, bypassing the encryption entirely.
+    </p>
+    <div class="controls-row">
+      <div style="width: 150px;">
+        <label>Search Space Limit:</label>
+        <input type="number" id="eccMaxSearch" value="20" min="1">
+      </div>
+      <button id="eccAttackBtn" class="danger" style="margin-top: 8px;">⛏ Brute-Force ECDLP</button>
+    </div>
+    <div class="box-out" id="eccAttackOut">Attack status idle.</div>
+  </div>
+
+  <!-- SECTION 4: THEORETICAL DISCUSSION -->
+  <div class="panel">
+    <h2>
+      <span>4. Theoretical Discussion & Comparative Analysis</span>
+      <span class="tag">Homework Requirements</span>
+    </h2>
+    
+    <div class="grid-2">
+      <div class="theory-box">
+        <h4>A. Statistical Properties & Length Constraints</h4>
+        <p>The <strong>Caesar cipher</strong> preserves the underlying frequency distribution of the plaintext, merely shifting the histogram. The $\chi^2$ attack minimizes the distance between observed and expected frequencies. However, as demonstrated in our empirical test:</p>
+        <ul>
+          <li><strong>Law of Large Numbers:</strong> For very short texts ($L < 30$), the sample variance is too high. The empirical distribution diverges significantly from the expected linguistic probability mass function (PMF), causing $\chi^2$ to fail.</li>
+          <li><strong>Threshold:</strong> The attack becomes highly reliable only when $L \ge 50-100$ characters, ensuring common letters (E, T, A) dominate the statistical noise.</li>
+        </ul>
+      </div>
+
+      <div class="theory-box">
+        <h4>B. Comparing Alternative Attacks (Caesar)</h4>
+        <ul>
+          <li><strong>Exhaustive Key Search (Brute Force):</strong> Trivial for Caesar ($\vert{}\mathcal{K}\vert{} = 26$). Requires $O(26)$ operations and a basic language oracle (dictionary). Superior to statistical analysis for short texts.</li>
+          <li><strong>Letter-Frequency Analysis ($\chi^2$ unigram):</strong> $O(26 \cdot L)$ operations. No dictionary needed, but requires $L \ge 50$.</li>
+          <li><strong>N-Gram Scoring:</strong> Computes the log-likelihood of bigrams/trigrams. More robust than unigrams for short texts because it captures structural syntax, but requires an $N$-gram training corpus.</li>
+        </ul>
+      </div>
+
+      <div class="theory-box">
+        <h4>C. ECDLP Vulnerabilities in the Toy Scheme</h4>
+        <p>While the Brute-Force attack implemented above successfully recovers the key on the toy curve, the toy scheme possesses a far more critical structural flaw:</p>
+        <ul>
+          <li><strong>Smooth Order & Pohlig-Hellman:</strong> The toy curve $y^2 \equiv x^3 + 7 \pmod{17}$ has a subgroup order $N = 9$. Since $9 = 3^2$ is a <em>smooth number</em>, the <strong>Pohlig-Hellman algorithm</strong> can solve the ECDLP in $O(\sqrt{3}) \approx 2$ operations. Real curves like secp256k1 use prime orders ($N \approx 2^{256}$) to thwart this decomposition, forcing generic attacks like Pollard's $\rho$ which require $O(\sqrt{N}) \approx 2^{128}$ operations.</li>
+        </ul>
+      </div>
+
+      <div class="theory-box">
+        <h4>D. Scheme Design Weaknesses (Malleability)</h4>
+        <ul>
+          <li><strong>Simplified KDF Flaw:</strong> Our implementation derives the symmetric mask via $\text{SHA-256}(S_x)$. For plaintexts $>32$ bytes, this mask repeats, leading to a "two-time pad" vulnerability. Real ECIES uses HKDF with a counter block.</li>
+          <li><strong>Lack of Authenticated Encryption (AEAD):</strong> The scheme applies a raw XOR stream cipher ($C_2 = m \oplus \text{KDF}$). This is highly <strong>malleable</strong>. An active attacker can flip bits in $C_2$ directly altering the decrypted plaintext without detection. An HMAC or Poly1305 tag is mandatory in production.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==========================================
+// 1. ELLIPTIC CURVE CRYPTOGRAPHY (BIGINT)
+// ==========================================
+
+// Curve Configurations
+const CURVES = {
+  toy: {
+    name: "Toy Curve (mod 17)",
+    P: 17n, A: 0n, B: 7n, N: 9n,
+    Gx: 1n, Gy: 5n
+  },
+  real: {
+    name: "secp256k1",
+    P: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn,
+    A: 0n, B: 7n,
+    N: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BB5BF567083144E5Bn,
+    Gx: 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798n,
+    Gy: 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8n
+  }
+};
+
+let activeCurve = CURVES.toy;
+const INF = null;
+
+// Secure Modulo (handles negative numbers correctly)
+const mod = (n, m) => ((n % m) + m) % m;
+
+// Extended Euclidean Algorithm for Modular Inverse
+function modInv(a, m) {
+  a = mod(a, m);
+  if (a === 0n) throw new Error("Modulo division by zero.");
+  let [r0, r1] = [a, m], [s0, s1] = [1n, 0n];
+  while (r1 !== 0n) {
+    const q = r0 / r1;
+    [r0, r1] = [r1, r0 - q * r1];
+    [s0, s1] = [s1, s0 - q * s1];
+  }
+  return mod(s0, m);
+}
+
+// Elliptic Curve Point Addition
+function pointAdd(P1, P2, curve = activeCurve) {
+  if (P1 === INF) return P2;
+  if (P2 === INF) return P1;
+  if (P1.x === P2.x && mod(P1.y + P2.y, curve.P) === 0n) return INF;
+  
+  let lambda;
+  if (P1.x === P2.x && P1.y === P2.y) {
+    const num = mod(3n * P1.x * P1.x + curve.A, curve.P);
+    const den = modInv(2n * P1.y, curve.P);
+    lambda = mod(num * den, curve.P);
+  } else {
+    const num = mod(P2.y - P1.y, curve.P);
+    const den = modInv(P2.x - P1.x, curve.P);
+    lambda = mod(num * den, curve.P);
+  }
+  
+  const x3 = mod(lambda * lambda - P1.x - P2.x, curve.P);
+  const y3 = mod(lambda * (P1.x - x3) - P1.y, curve.P);
+  return { x: x3, y: y3 };
+}
+
+// Elliptic Curve Scalar Multiplication
+function scalarMult(k, Pt, curve = activeCurve) {
+  let R = INF, Q = Pt;
+  let kBig = BigInt(k);
+  kBig = mod(kBig, curve.N);
+  if (kBig === 0n) return INF;
+
+  while (kBig > 0n) {
+    if (kBig & 1n) R = pointAdd(R, Q, curve);
+    Q = pointAdd(Q, Q, curve);
+    kBig >>= 1n;
+  }
+  return R;
+}
+
+// Native WebCrypto SHA-256 for symmetric KDF
+async function sha256Bytes(bytes) {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+  return new Uint8Array(hashBuffer);
+}
+
+// ==========================================
+// 2. CRYPTO OPERATIONS
+// ==========================================
+
+async function eccEncryptDecryptFlow() {
+  const plainText = document.getElementById('eccPlain').value;
+  const privB_raw = BigInt(document.getElementById('eccPrivKey').value);
+  const kNonce_raw = BigInt(document.getElementById('eccNonce').value);
+  const trace = document.getElementById('eccTrace');
+  const G = { x: activeCurve.Gx, y: activeCurve.Gy };
+
+  trace.innerHTML = `<em>Using Curve: ${activeCurve.name}</em><br>`;
+
+  // Warning check for unreduced scalars
+  if (privB_raw >= activeCurve.N) {
+    trace.innerHTML += `<span style="color:#ffd166">⚠ Warning: $d_B$ = ${privB_raw} $\\ge N$ = ${activeCurve.N}. Reduced to ${privB_raw % activeCurve.N}.</span><br>`;
+  }
+  if (kNonce_raw >= activeCurve.N) {
+    trace.innerHTML += `<span style="color:#ffd166">⚠ Warning: $k$ = ${kNonce_raw} $\\ge N$ = ${activeCurve.N}. Reduced to ${kNonce_raw % activeCurve.N}.</span><br>`;
+  }
+
+  const privB = mod(privB_raw, activeCurve.N);
+  const kNonce = mod(kNonce_raw, activeCurve.N);
+
+  try {
+    // 1. Key Gen
+    const Qb = scalarMult(privB, G);
+    trace.innerHTML += `Bob's PubKey ($Q_B$): (${Qb.x.toString(16).slice(0,10)}..., ${Qb.y.toString(16).slice(0,10)}...)<br>`;
+
+    // 2. Encrypt
+    const encoder = new TextEncoder();
+    const msgBytes = encoder.encode(plainText);
+    const C1 = scalarMult(kNonce, G); // Ephemeral public key
+    const S = scalarMult(kNonce, Qb); // Shared Secret
+    
+    // KDF based on S.x
+    const hexX = S.x.toString(16).padStart(64, '0');
+    const xBytes = new Uint8Array(hexX.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    const mask = await sha256Bytes(xBytes);
+    
+    const C2 = new Uint8Array(msgBytes.length);
+    for (let i = 0; i < msgBytes.length; i++) C2[i] = msgBytes[i] ^ mask[i % mask.length];
+    
+    trace.innerHTML += `C1: (${C1.x.toString(16).slice(0,10)}..., ${C1.y.toString(16).slice(0,10)}...)<br>`;
+    trace.innerHTML += `C2 (Ciphertext Stream): <span class="val">${Array.from(C2).map(b=>b.toString(16).padStart(2,'0')).join('')}</span><br>`;
+
+    // 3. Decrypt
+    const S_dec = scalarMult(privB, C1);
+    const hexX_dec = S_dec.x.toString(16).padStart(64, '0');
+    const xBytes_dec = new Uint8Array(hexX_dec.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    const mask_dec = await sha256Bytes(xBytes_dec);
+
+    const plainBytes = new Uint8Array(C2.length);
+    for (let i = 0; i < C2.length; i++) plainBytes[i] = C2[i] ^ mask_dec[i % mask_dec.length];
+    
+    const decrypted = new TextDecoder().decode(plainBytes);
+    trace.innerHTML += `Decrypted: <span class="math-hl">${decrypted}</span> (Match: ${decrypted === plainText ? '✅' : '❌'})`;
+    
+    // Force MathJax to re-render in case dynamic content was injected
+    if (window.MathJax) {
+        MathJax.typesetPromise();
+    }
+
+  } catch (e) {
+    trace.innerHTML += `<span style="color:#ff5577">Error: ${e.message}</span>`;
+  }
+}
+
+// --- CAESAR & FREQUENCY ANALYSIS ---
+function caesarTransform(text, shift) {
+  const s = ((shift % 26) + 26) % 26;
+  return text.toUpperCase().replace(/[A-Z]/g, ch => {
+    const code = ch.charCodeAt(0) - 65;
+    return String.fromCharCode(((code + s) % 26) + 65);
+  });
+}
+
+const FREQ_EN = [0.0817, 0.0149, 0.0278, 0.0425, 0.1270, 0.0223, 0.0202, 0.0609, 0.0697, 0.0015, 0.0077, 0.0403, 0.0241, 0.0675, 0.0751, 0.0193, 0.0009, 0.0599, 0.0633, 0.0906, 0.0276, 0.0098, 0.0236, 0.0015, 0.0197, 0.0007];
+const FREQ_IT = [0.1174, 0.0092, 0.0450, 0.0373, 0.1179, 0.0115, 0.0164, 0.0064, 0.1128, 0.0001, 0.0001, 0.0651, 0.0251, 0.0688, 0.0983, 0.0305, 0.0051, 0.0637, 0.0498, 0.0562, 0.0301, 0.0210, 0.0001, 0.0001, 0.0001, 0.0118];
+
+function runChiSquare(cipherText, lang = 'EN') {
+  const expectedDist = lang === 'IT' ? FREQ_IT : FREQ_EN;
+  const clean = cipherText.toUpperCase().replace(/[^A-Z]/g, '');
+  const L = clean.length;
+  if (L === 0) return { bestShift: 0, score: 0 };
+
+  const counts = new Array(26).fill(0);
+  for (let ch of clean) counts[ch.charCodeAt(0) - 65]++;
+
+  let bestShift = 0;
+  let minChi2 = Infinity;
+
+  for (let s = 0; s < 26; s++) {
+    let chi2 = 0;
+    for (let i = 0; i < 26; i++) {
+      const observed = counts[(i + s) % 26]; 
+      const expected = L * expectedDist[i];
+      chi2 += Math.pow(observed - expected, 2) / (expected || 0.000001);
+    }
+    if (chi2 < minChi2) { minChi2 = chi2; bestShift = s; }
+  }
+
+  return { bestShift, minChi2, dec: caesarTransform(clean, 26 - bestShift), L };
+}
+
+// PRNG for Reproducible Experiments
+let prngSeed = 0xC0FFEE;
+const rand = () => {
+  prngSeed = (prngSeed * 1103515245 + 12345) & 0x7FFFFFFF;
+  return prngSeed / 0x80000000;
+};
+
+// ==========================================
+// 3. UI EVENT LISTENERS
+// ==========================================
+
+// Curve Toggles
+document.getElementById('btnCurveToy').onclick = (e) => {
+  activeCurve = CURVES.toy;
+  e.target.classList.add('active');
+  document.getElementById('btnCurveReal').classList.remove('active');
+  document.getElementById('eccPrivKey').value = 4;
+  document.getElementById('eccNonce').value = 7;
+  document.getElementById('eccMaxSearch').value = 20;
+  document.getElementById('eccRunBtn').click();
+};
+
+document.getElementById('btnCurveReal').onclick = (e) => {
+  activeCurve = CURVES.real;
+  e.target.classList.add('active');
+  document.getElementById('btnCurveToy').classList.remove('active');
+  document.getElementById('eccPrivKey').value = 1337;
+  document.getElementById('eccNonce').value = 4242;
+  document.getElementById('eccMaxSearch').value = 5000;
+  document.getElementById('eccRunBtn').click();
+};
+
+// ECC Run
+document.getElementById('eccRunBtn').onclick = eccEncryptDecryptFlow;
+
+// ECDLP Attack (Brute Force)
+document.getElementById('eccAttackBtn').onclick = () => {
+  const privB = mod(BigInt(document.getElementById('eccPrivKey').value), activeCurve.N);
+  const G = { x: activeCurve.Gx, y: activeCurve.Gy };
+  const Qb = scalarMult(privB, G); 
+  const maxSearch = parseInt(document.getElementById('eccMaxSearch').value, 10);
+  const out = document.getElementById('eccAttackOut');
+  
+  let candidate = null;
+  let curr = INF;
+  const t0 = performance.now();
+  
+  for (let d = 1; d <= maxSearch; d++) {
+    curr = pointAdd(curr, G);
+    if (curr !== INF && curr.x === Qb.x && curr.y === Qb.y) {
+      candidate = d;
+      break;
+    }
+  }
+  const t = (performance.now() - t0).toFixed(2);
+  
+  if (candidate !== null) {
+    out.innerHTML = `<span style="color:#64ffda">✓ Key Recovered:</span> <span class="val">d_B = ${candidate}</span> (Found in ${t} ms).<br>`;
+    if (activeCurve === CURVES.toy) out.innerHTML += `<em>Note: Because subgroup order is 9 ($3^2$), Pohlig-Hellman would solve this in just ~2 operations.</em>`;
+  } else {
+    out.innerHTML = `<span style="color:#ff5577">✗ Key Not Found in range [1, ${maxSearch}].</span> (${t} ms).<br>If using secp256k1 with a large key, generic brute-force is intractable $\\mathcal{O}(\\sqrt{N})$.`;
+  }
+  
+  if (window.MathJax) MathJax.typesetPromise();
+};
+
+// Caesar Execute
+document.getElementById('caesarCrackBtn').onclick = () => {
+  const cipher = document.getElementById('caesarInput').value;
+  const lang = document.getElementById('caesarLang').value;
+  const res = runChiSquare(cipher, lang);
+  document.getElementById('caesarResult').innerHTML = 
+    `Length: ${res.L} chars | Estimated Shift: <span class="val">${res.bestShift}</span> | $\\chi^2$: ${res.minChi2.toFixed(2)}<br>
+     Decrypted: <span style="color:#64ffda">${res.dec}</span>`;
+     
+  if (window.MathJax) MathJax.typesetPromise();
+};
+
+// Empirical Length Experiment
+document.getElementById('runLengthExpBtn').onclick = () => {
+  // Base corpus approx 5600 chars long
+  const baseString = "THEQUICKBROWNFOXJUMPSOVERTHELAZYDOGINAVERYCOMPLEXANDFASCINATINGWAYTHATALLOWSUSTOTESTCRYPTOGRAPHICALGORITHMSWITHSUFFICIENTLINGUISTICREDUNDANCYANDENTROPYTOENSURETHATFREQUENCYANALYSISWORKSASEXPECTEDONLONGCIPHERTEXTSBUTFAILSWHENWEAPPROACHTHECRITICALTHRESHOLDOFVARIANCE";
+  const baseCorpus = baseString.repeat(12);
+  
+  const lengthsToTest = [5, 10, 25, 50, 100, 200, 500, 1000, 2000];
+  const iterations = 100;
+  const chartContainer = document.getElementById('lengthChart');
+  chartContainer.innerHTML = ''; 
+  
+  prngSeed = 0xC0FFEE; // Reset seed for consistent graph reproducibility
+
+  lengthsToTest.forEach(L => {
+    let successes = 0;
+    for(let i=0; i<iterations; i++) {
+      // Randomly sample a substring of length L
+      const maxOffset = Math.max(1, baseCorpus.length - L);
+      const offset = Math.floor(rand() * maxOffset);
+      let sample = baseCorpus.substring(offset, offset + L);
+      
+      let shift = Math.floor(rand() * 26);
+      let cipher = caesarTransform(sample, shift);
+      let guess = runChiSquare(cipher, 'EN').bestShift;
+      if (guess === shift) successes++;
+    }
+    
+    let successRate = (successes / iterations) * 100;
+    
+    // Build bar UI
+    const wrapper = document.createElement('div');
+    wrapper.className = 'bar-wrapper';
+    
+    const labelTop = document.createElement('div');
+    labelTop.className = 'bar-label-top';
+    labelTop.innerText = `${successRate.toFixed(0)}%`;
+    
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = `${Math.max(successRate, 1)}%`; // give 0% a 1% visual height so it's not invisible
+    bar.style.backgroundColor = successRate > 80 ? '#64ffda' : (successRate > 40 ? '#ffd166' : '#ff5577');
+    
+    const labelBot = document.createElement('div');
+    labelBot.className = 'bar-label-bottom';
+    labelBot.innerText = `L=${L}`;
+    
+    wrapper.appendChild(labelTop);
+    wrapper.appendChild(bar);
+    wrapper.appendChild(labelBot);
+    chartContainer.appendChild(wrapper);
+  });
+};
+
+// Init
+document.getElementById('eccRunBtn').click();
+document.getElementById('caesarCrackBtn').click();
+</script>
+</body>
+</html>
