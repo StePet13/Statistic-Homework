@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Homework 2 — Advanced Cryptanalysis, Statistics & Theory</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] } };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  :root {
+    --bg-color: #f8fafc; --panel-bg: #ffffff; --text-main: #334155; --text-muted: #64748b;
+    --primary: #4f46e5; --primary-hover: #4338ca; --secondary: #e2e8f0; --danger: #ef4444;
+    --success: #10b981; --warning: #f59e0b; --border: #e2e8f0; --radius: 12px;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 30px 20px; line-height: 1.6; }
+  .header { max-width: 1200px; margin: 0 auto 30px auto; text-align: center; }
+  .header h1 { font-size: 2.2rem; font-weight: 700; color: #0f172a; margin: 0 0 10px 0; }
+  .header p { color: var(--text-muted); font-size: 1.1rem; max-width: 800px; margin: 0 auto; }
+  
+  .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
+  .panel { background: var(--panel-bg); border-radius: var(--radius); border: 1px solid var(--border); padding: 30px; box-shadow: var(--shadow); }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--secondary); padding-bottom: 12px; }
+  .panel-header h2 { margin: 0; font-size: 1.25rem; color: #0f172a; }
+  .badge { background: #eff6ff; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+  
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; color: #475569; }
+  input, textarea, select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Fira Code', monospace; font-size: 0.9rem; margin-bottom: 15px; }
+  
+  .controls-row { display: flex; gap: 15px; align-items: flex-start; margin-bottom: 15px; }
+  button { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; height: 42px; min-width: 140px; }
+  button:hover { background: var(--primary-hover); }
+  button.danger { background: var(--danger); }
+  button.danger:hover { background: #dc2626; }
+  button.warning { background: var(--warning); color: #fff; }
+  button.secondary { background: white; color: var(--primary); border: 1px solid var(--primary); }
+  
+  .output-box { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 15px; font-family: 'Fira Code', monospace; font-size: 0.85rem; overflow-x: auto; min-height: 50px; border: 1px solid #334155; white-space: pre-wrap; }
+  .highlight { color: #38bdf8; font-weight: bold; }
+  .success { color: #34d399; font-weight: bold; }
+  .alert { color: #fb7185; font-weight: bold; }
+  
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 10px; }
+  th, td { padding: 10px; border: 1px solid var(--border); text-align: left; }
+  th { background: #f8fafc; color: #0f172a; font-weight: 600; }
+  .chart-wrapper { position: relative; width: 100%; }
+
+  .theory-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 15px; }
+  .theory-card h3 { margin: 0 0 10px 0; font-size: 1rem; color: var(--primary); }
+  .theory-card p { margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Statistical Cryptanalysis & ECC Malleability</h1>
+  <p>Rigorous analysis of statistical properties (Chi-Square and Bigrams), algebraic attacks (BSGS), architectural vulnerabilities (Malleability), and theoretical constructs (BIP-39/Keccak).</p>
+</div>
+
+<div class="container">
+
+  <!-- SECTION 1: ECC ECIES & MALLEABILITY -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>1. ECC ECIES Variant: Encryption, Key Roles, and Malleability</h2>
+      <span class="badge">Algebraic Cryptography</span>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <label>Plaintext Message ($m$):</label>
+        <input type="text" id="eccPlain" value="ATTACKATDAWN">
+        
+        <div class="controls-row">
+          <div style="flex:1;"><label>Bob's Private Key ($d_B$):</label><input type="number" id="eccPriv" value="4"></div>
+          <div style="flex:1;"><label>Alice's Nonce ($k$):</label><input type="number" id="eccNonce" value="7"></div>
+        </div>
+        
+        <div class="controls-row">
+          <button id="eccRunBtn">🔒 Run Complete Flow</button>
+          <button id="eccMalleabilityBtn" class="warning">☢️ Inject Error in $C_2$</button>
+        </div>
+        
+        <label>Scheme Architecture and Key Roles:</label>
+        <table>
+          <tr><th>Parameter</th><th>Knowledge</th><th>Cryptographic Role</th></tr>
+          <tr><td>$d_B$ (Private)</td><td>Only Bob</td><td>Inverts the logarithm to reconstruct $S$.</td></tr>
+          <tr><td>$Q_B$ (Public)</td><td>Public</td><td>Allows Alice to address the message.</td></tr>
+          <tr><td>$k$ (Nonce)</td><td>Only Alice</td><td>Ensures probabilistic semantics (IND-CPA).</td></tr>
+          <tr><td>$S$ (Shared)</td><td>Alice and Bob</td><td>Shared secret $S = k \cdot Q_B = d_B \cdot C_1$.</td></tr>
+          <tr><td>Keystream</td><td>Alice and Bob</td><td>Derived from $S_x$ via KDF. Masks the message.</td></tr>
+        </table>
+      </div>
+
+      <div>
+        <label>Cryptographic Trace & Decryption Demo:</label>
+        <div class="output-box" id="eccOutput" style="min-height: 250px;">Waiting...</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
+          <strong>Malleability Note:</strong> Press the yellow button to flip a bit in $C_2$. Missing a MAC (e.g., Poly1305), Bob will decrypt a corrupted message without noticing the tampering.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: STATISTICS (IC AND ENTROPY) -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>2. Statistical Properties: Preservation vs. Destruction</h2>
+      <span class="badge">Information Theory</span>
+    </div>
+    <div class="grid-2">
+      <div>
+        <p style="font-size: 0.95rem; margin-top:0;">The <strong>Index of Coincidence (IC)</strong> measures the probability that two randomly drawn elements are identical. <strong>Shannon Entropy ($H$)</strong> measures disorder (in bits). We compare the plaintext with the two generated ciphertexts.</p>
+        <button id="calcStatsBtn" class="secondary">📊 Calculate Live Stats</button>
+      </div>
+      <div>
+        <table>
+          <tr><th>Data Source</th><th>IC (Expected: ~0.065)</th><th>Entropy $H$ (Bits)</th></tr>
+          <tr><td>Plaintext (Char)</td><td id="statPlainIC">...</td><td id="statPlainH">...</td></tr>
+          <tr><td>Caesar Ciphertext</td><td id="statCaesarIC">...</td><td id="statCaesarH">...</td></tr>
+          <tr><td>ECC Stream (Byte)</td><td id="statEccIC">...</td><td id="statEccH">...</td></tr>
+        </table>
+        <p style="font-size:0.8rem; color:var(--text-muted);">*Caesar exactly preserves the IC and $H$ of the plaintext. ECC (using SHA-256) compresses the IC toward $1/256 \approx 0.0039$ and expands $H$ toward 8 bits, destroying the statistical structure.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: CAESAR & CHI-SQUARE -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>3. Statistical Attack on Caesar ($\chi^2$ vs N-Grams) and Sensitivity</h2>
+      <span class="badge">Frequency Analysis</span>
+    </div>
+    
+    <div class="grid-2">
+      <div>
+        <label>Realistic Corpus for Empirical Analysis:</label>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top:0;">Executes 100 iterations per sample length $L$, with random offsets and shifts extracted from an English literary corpus. Compares the unigram test ($\chi^2$) with the syntactic Bigram model (Log-Likelihood).</p>
+        <button id="runLengthExpBtn" class="primary">🔬 Run Multi-Method Test</button>
+        <br><br>
+        <label>Methodology Comparison (Empirical and Theoretical):</label>
+        <table>
+          <tr><th>Method</th><th>Complexity</th><th>Theoretical Efficacy</th></tr>
+          <tr><td><strong>Brute-Force</strong></td><td>$\mathcal{O}(26)$</td><td>Optimal for $L < 15$. Requires dictionary/oracle.</td></tr>
+          <tr><td><strong>$\chi^2$ Unigrams</strong></td><td>$\mathcal{O}(26 \cdot L)$</td><td>Optimal for $L > 50$. Fails under variance tolerance.</td></tr>
+          <tr><td><strong>$2$-gram Scoring</strong></td><td>$\mathcal{O}(26 \cdot L)$</td><td>More robust than $\chi^2$ on short texts (captures syntax).</td></tr>
+        </table>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div>
+          <label>Expected English Letter Distribution (PMF)</label>
+          <div class="chart-wrapper" style="height: 160px;">
+            <canvas id="freqChart"></canvas>
+          </div>
+        </div>
+        
+        <div>
+          <label>Success Rate: $\chi^2$ vs Bigrams (Click test to see variance)</label>
+          <div class="chart-wrapper" style="height: 220px;">
+            <canvas id="lengthChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: ALGEBRAIC ATTACK (ECDLP) -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>4. ECDLP Resolution on Restricted Space: BSGS</h2>
+      <span class="badge">Algebraic Cryptanalysis</span>
+    </div>
+    
+    <div class="grid-2">
+      <div>
+        <label>Interception Parameters (Toy Curve $N=9$):</label>
+        <div class="controls-row">
+          <div style="flex:1;"><label>Max Search Space:</label><input type="number" id="eccMaxSearch" value="20"></div>
+          <button id="eccAttackBtn" class="danger" style="align-self: flex-end; margin-bottom: 15px;">⛏ Solve ECDLP</button>
+        </div>
+        <label>Execution Trace (Baby-Step Giant-Step with Secure Hash):</label>
+        <div class="output-box" id="eccAttackOut" style="min-height: 80px;">Waiting...</div>
+      </div>
+      
+      <div>
+        <label>Break Projections on real secp256k1 ($N \approx 2^{256}$):</label>
+        <table>
+          <tr><th>Key Bits ($n$)</th><th>BSGS Attempts ($\mathcal{O}(\sqrt{2^n})$)</th><th>Time (10^9 ops/s)</th></tr>
+          <tr><td>32 bits</td><td>$2^{16} \approx 6.5 \times 10^4$</td><td>$< 1$ millisecond</td></tr>
+          <tr><td>64 bits</td><td>$2^{32} \approx 4.2 \times 10^9$</td><td>$\approx 4.2$ seconds</td></tr>
+          <tr><td>128 bits</td><td>$2^{64} \approx 1.8 \times 10^{19}$</td><td>$\approx 584$ years</td></tr>
+          <tr><td>256 bits</td><td>$2^{128} \approx 3.4 \times 10^{38}$</td><td>$\approx 10^{21}$ years</td></tr>
+        </table>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin-top: 5px;">*On the Toy Scheme ($N=9=3^2$), the <strong>Pohlig-Hellman</strong> algorithm further reduces complexity to $\mathcal{O}(\sqrt{3}) \approx 2$ operations by exploiting the smooth decomposition of the order.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: THEORY (HMWK2 PIPELINE) -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>5. Theoretical Context: Derivation Pipeline and Ethereum Standards</h2>
+      <span class="badge">Cryptographic Standards</span>
+    </div>
+    <div class="theory-card">
+      <h3>Mnemonic & BIP-39</h3>
+      <p>BIP-39 standardizes deterministic seed generation. Initial entropy (e.g., 128-256 bits) generates a 12-24 word mnemonic phrase from a standard dictionary. The PBKDF2 function (with HMAC-SHA512 and 2048 iterations) derives the master seed from the phrase and an optional passphrase, ensuring portability and security against dictionary attacks.</p>
+    </div>
+    <div class="theory-card">
+      <h3>Key Derivation (BIP-32 / BIP-44)</h3>
+      <p>The master seed feeds the HD (Hierarchical Deterministic) BIP-32 scheme, allowing child key derivation. BIP-44 defines a standardized path (e.g., <code>m/44'/60'/0'/0/0</code> for Ethereum), organizing the cryptographic tree by purpose, coin type, account, and index, keeping funds logically separated but recoverable from a single root.</p>
+    </div>
+    <div class="theory-card">
+      <h3>Keccak-256 vs SHA3-256 & Address Derivation (EIP-55)</h3>
+      <p>The private key, a scalar on the secp256k1 curve, generates an uncompressed public key (64 bytes, X and Y coordinates). Ethereum applies the <b>Keccak-256</b> hash function (standardized before NIST's final modifications to SHA3-256) to the entire public key. The final address consists of the last 20 bytes (40 hex characters) of the hash. EIP-55 implements a mixed upper/lowercase checksum mechanism by verifying the string address hash to prevent typographical errors.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==========================================
+// UTILITY: Visual Feedback for Buttons
+// ==========================================
+function buttonFeedback(btnId, originalText) {
+  const btn = document.getElementById(btnId);
+  btn.innerText = "Fatto! ✅";
+  setTimeout(() => { btn.innerText = originalText; }, 1000);
+}
+
+// ==========================================
+// CORE ECC (Toy Curve Mod 17)
+// ==========================================
+const CURVE = { P: 17n, A: 0n, B: 7n, N: 9n, Gx: 1n, Gy: 5n };
+const INF = null;
+
+const mod = (n, m) => ((n % m) + m) % m;
+function modInv(a, m) {
+  a = mod(a, m);
+  let [r0, r1] = [a, m], [s0, s1] = [1n, 0n];
+  while (r1 !== 0n) { const q = r0 / r1; [r0, r1] = [r1, r0 - q * r1]; [s0, s1] = [s1, s0 - q * s1]; }
+  return mod(s0, m);
+}
+function pointAdd(P1, P2) {
+  if (P1 === INF) return P2; if (P2 === INF) return P1;
+  if (P1.x === P2.x && mod(P1.y + P2.y, CURVE.P) === 0n) return INF;
+  let lam = (P1.x === P2.x && P1.y === P2.y) 
+    ? mod(mod(3n * P1.x * P1.x + CURVE.A, CURVE.P) * modInv(2n * P1.y, CURVE.P), CURVE.P)
+    : mod(mod(P2.y - P1.y, CURVE.P) * modInv(P2.x - P1.x, CURVE.P), CURVE.P);
+  let x3 = mod(lam * lam - P1.x - P2.x, CURVE.P);
+  return { x: x3, y: mod(lam * (P1.x - x3) - P1.y, CURVE.P) };
+}
+function scalarMult(k, Pt) {
+  let R = INF, Q = Pt, kBig = mod(BigInt(k), CURVE.N);
+  if (kBig === 0n) return INF;
+  while (kBig > 0n) { if (kBig & 1n) R = pointAdd(R, Q); Q = pointAdd(Q, Q); kBig >>= 1n; }
+  return R;
+}
+
+async function sha256Bytes(bytes) {
+  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  return new Uint8Array(hash);
+}
+
+let eccState = { C1: null, C2: null, Qb: null, privB: null };
+
+// ==========================================
+// 1. ECIES FLOW & MALLEABILITY
+// ==========================================
+async function runECIES(corrupt = false) {
+  const plainText = document.getElementById('eccPlain').value;
+  const privB_raw = BigInt(document.getElementById('eccPriv').value);
+  const kNonce_raw = BigInt(document.getElementById('eccNonce').value);
+  const out = document.getElementById('eccOutput');
+  const G = { x: CURVE.Gx, y: CURVE.Gy };
+  
+  let log = "";
+  eccState.privB = mod(privB_raw, CURVE.N);
+  const kNonce = mod(kNonce_raw, CURVE.N);
+
+  eccState.Qb = scalarMult(eccState.privB, G);
+  log += `[KeyGen] Q_B = ${eccState.privB} * G = (${eccState.Qb.x}, ${eccState.Qb.y})\n`;
+
+  if (!corrupt) {
+    const msgBytes = new TextEncoder().encode(plainText);
+    eccState.C1 = scalarMult(kNonce, G);
+    const S = scalarMult(kNonce, eccState.Qb);
+    
+    const hexX = S.x.toString(16).padStart(64, '0');
+    const xBytes = new Uint8Array(hexX.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    const mask = await sha256Bytes(xBytes);
+    
+    eccState.C2 = new Uint8Array(msgBytes.length);
+    for (let i = 0; i < msgBytes.length; i++) eccState.C2[i] = msgBytes[i] ^ mask[i % mask.length];
+    
+    log += `[Encrypt] C1 = k * G = (${eccState.C1.x}, ${eccState.C1.y})\n`;
+    log += `[Encrypt] S = k * Q_B = (${S.x}, ${S.y})\n`;
+    log += `[Encrypt] C2 = M ⊕ KDF(S_x) = <span class="highlight">${Array.from(eccState.C2).map(b=>b.toString(16).padStart(2,'0')).join('')}</span>\n`;
+  } else {
+    eccState.C2[0] ^= 0x05; 
+    log += `<span class="alert">[ATTACK] The adversary alters C2 in transit (XOR 0x05 on the first byte).</span>\nNew C2 = <span class="alert">${Array.from(eccState.C2).map(b=>b.toString(16).padStart(2,'0')).join('')}</span>\n`;
+  }
+
+  const S_dec = scalarMult(eccState.privB, eccState.C1);
+  const hexX_dec = S_dec.x.toString(16).padStart(64, '0');
+  const xBytes_dec = new Uint8Array(hexX_dec.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+  const mask_dec = await sha256Bytes(xBytes_dec);
+
+  const plainBytes = new Uint8Array(eccState.C2.length);
+  for (let i = 0; i < eccState.C2.length; i++) plainBytes[i] = eccState.C2[i] ^ mask_dec[i % mask_dec.length];
+  
+  const decrypted = new TextDecoder().decode(plainBytes);
+  
+  if(corrupt) {
+    log += `[Decrypt] Bob decrypts unaware: <span class="alert">${decrypted}</span>\n<span class="alert">Malleability Vulnerability confirmed (Missing AEAD).</span>`;
+  } else {
+    log += `[Decrypt] S_dec = d_B * C1 = (${S_dec.x}, ${S_dec.y})\n`;
+    log += `[Decrypt] Message: <span class="success">${decrypted}</span>`;
+  }
+  out.innerHTML = log;
+}
+
+document.getElementById('eccRunBtn').onclick = () => runECIES(false);
+document.getElementById('eccMalleabilityBtn').onclick = () => {
+  if(!eccState.C2) return alert("Run normal encryption first.");
+  runECIES(true);
+};
+
+// ==========================================
+// 2. STATISTICS (IC AND ENTROPY)
+// ==========================================
+function calcStats(data, isText) {
+  let counts = {}, L = data.length;
+  if(L === 0) return { ic: 0, h: 0 };
+  
+  for (let i = 0; i < L; i++) {
+    let val = isText ? data[i] : data[i];
+    counts[val] = (counts[val] || 0) + 1;
+  }
+  
+  let ic = 0, h = 0;
+  for (let val in counts) {
+    let f = counts[val];
+    ic += f * (f - 1);
+    let p = f / L;
+    h -= p * Math.log2(p);
+  }
+  ic = ic / (L * (L - 1));
+  return { ic, h };
+}
+
+document.getElementById('calcStatsBtn').onclick = async () => {
+  buttonFeedback('calcStatsBtn', '📊 Calculate Live Stats');
+  
+  const plain = document.getElementById('eccPlain').value.toUpperCase().replace(/[^A-Z]/g, '');
+  if(plain.length < 2) return alert("Enter a longer text for valid statistics.");
+  
+  // Force a re-encryption quietly to ensure eccState.C2 matches the current plaintext
+  await runECIES(false);
+
+  const s = 3;
+  const caesar = plain.replace(/[A-Z]/g, ch => String.fromCharCode(((ch.charCodeAt(0) - 65 + s) % 26) + 65));
+  const eccBytes = eccState.C2; 
+
+  const pStats = calcStats(plain, true);
+  const cStats = calcStats(caesar, true);
+  const eStats = calcStats(eccBytes, false);
+
+  document.getElementById('statPlainIC').innerText = pStats.ic.toFixed(4);
+  document.getElementById('statPlainH').innerText = pStats.h.toFixed(2);
+  document.getElementById('statCaesarIC').innerText = cStats.ic.toFixed(4);
+  document.getElementById('statCaesarH').innerText = cStats.h.toFixed(2);
+  document.getElementById('statEccIC').innerText = eStats.ic.toFixed(4);
+  document.getElementById('statEccH').innerText = eStats.h.toFixed(2);
+};
+
+// ==========================================
+// 3. CAESAR CHI-SQUARE & BIGRAMS
+// ==========================================
+const FREQ_EN = [0.0817, 0.0149, 0.0278, 0.0425, 0.1270, 0.0223, 0.0202, 0.0609, 0.0697, 0.0015, 0.0077, 0.0403, 0.0241, 0.0675, 0.0751, 0.0193, 0.0009, 0.0599, 0.0633, 0.0906, 0.0276, 0.0098, 0.0236, 0.0015, 0.0197, 0.0007];
+
+const REAL_CORPUS = "ALICEWASBEGINNINGTOGETVERYTIREDOFSITTINGBYHERSISTERONTHEBANKANDOFHAVINGNOTHINGTODOONCEORTWICESHEHADPEEPEDINTOTHEBOOKHERSISTERWASREADINGBUTITHADNOPICTURESORCONVERSATIONSINITA".repeat(40);
+
+function buildBigramModel(text) {
+  let model = {};
+  let total = 0;
+  for(let i = 0; i < text.length - 1; i++) {
+    let pair = text.substring(i, i+2);
+    model[pair] = (model[pair] || 0) + 1;
+    total++;
+  }
+  for(let k in model) model[k] = Math.log(model[k] / total);
+  return model;
+}
+const BIGRAM_MODEL = buildBigramModel(REAL_CORPUS);
+
+let lengthChartInstance = null;
+let prngSeed = 0xC0FFEE;
+const rand = () => { prngSeed = (prngSeed * 1103515245 + 12345) & 0x7FFFFFFF; return prngSeed / 0x80000000; };
+
+function runChiSquareBase(cipherText) {
+  const L = cipherText.length;
+  const counts = new Array(26).fill(0);
+  for (let ch of cipherText) counts[ch.charCodeAt(0) - 65]++;
+  let bestShift = 0, minChi2 = Infinity;
+  for (let s = 0; s < 26; s++) {
+    let chi2 = 0;
+    for (let i = 0; i < 26; i++) {
+      const observed = counts[(i + s) % 26]; 
+      const expected = L * FREQ_EN[i];
+      chi2 += Math.pow(observed - expected, 2) / (expected || 0.000001);
+    }
+    if (chi2 < minChi2) { minChi2 = chi2; bestShift = s; }
+  }
+  return bestShift;
+}
+
+function runBigramScore(cipherText) {
+  let bestShift = 0, maxLog = -Infinity;
+  for(let s = 0; s < 26; s++) {
+    let dec = cipherText.replace(/[A-Z]/g, ch => String.fromCharCode(((ch.charCodeAt(0) - 65 + (26 - s)) % 26) + 65));
+    let currentLog = 0;
+    for(let i = 0; i < dec.length - 1; i++) {
+      let pair = dec.substring(i, i+2);
+      currentLog += BIGRAM_MODEL[pair] || -15; 
+    }
+    if(currentLog > maxLog) { maxLog = currentLog; bestShift = s; }
+  }
+  return bestShift;
+}
+
+document.getElementById('runLengthExpBtn').onclick = () => {
+  buttonFeedback('runLengthExpBtn', '🔬 Run Multi-Method Test');
+
+  const L_values = [5, 10, 20, 30, 50, 75, 100, 150];
+  const iterations = 100;
+  let chiRates = [], bigramRates = [];
+  
+  // Notice: The line `prngSeed = 0xC0FFEE;` has been removed from here!
+  // By omitting the hard reset, every button click will continue drawing new random numbers,
+  // allowing the Monte Carlo simulation to generate a fresh, slightly varying chart each time.
+  
+  L_values.forEach(L => {
+    let chiHits = 0, bgHits = 0;
+    for(let i = 0; i < iterations; i++) {
+      const offset = Math.floor(rand() * (REAL_CORPUS.length - L));
+      const sample = REAL_CORPUS.substring(offset, offset + L);
+      const trueShift = Math.floor(rand() * 26);
+      const cipher = sample.replace(/[A-Z]/g, ch => String.fromCharCode(((ch.charCodeAt(0) - 65 + trueShift) % 26) + 65));
+      
+      if (runChiSquareBase(cipher) === trueShift) chiHits++;
+      if (runBigramScore(cipher) === trueShift) bgHits++;
+    }
+    chiRates.push((chiHits / iterations) * 100);
+    bigramRates.push((bgHits / iterations) * 100);
+  });
+  
+  const ctx = document.getElementById('lengthChart').getContext('2d');
+  if(lengthChartInstance) lengthChartInstance.destroy();
+  lengthChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: L_values,
+      datasets: [
+        { label: 'Chi-Square Success (%)', data: chiRates, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', borderWidth: 3, fill: true, tension: 0.3 },
+        { label: 'Bigram Success (%)', data: bigramRates, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 3, fill: true, tension: 0.3, borderDash: [5, 5] }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { min: 0, max: 100 } } }
+  });
+};
+
+// ==========================================
+// 4. ECDLP BSGS ATTACK (Hash Fix)
+// ==========================================
+function solveBSGS(Qb, maxSearch) {
+  const G = { x: CURVE.Gx, y: CURVE.Gy };
+  const m = BigInt(Math.ceil(Math.sqrt(maxSearch)));
+  
+  let table = new Map();
+  let curr = INF;
+  for(let j = 0n; j < m; j++) {
+    let key = curr === INF ? 'INF' : `${curr.x},${curr.y}`;
+    table.set(key, j);
+    curr = pointAdd(curr, G);
+  }
+  
+  let mG = scalarMult(m, G);
+  let neg_mG = { x: mG.x, y: mod(-mG.y, CURVE.P) };
+  let gamma = Qb;
+  
+  for(let i = 0n; i < m; i++) {
+    let key = gamma === INF ? 'INF' : `${gamma.x},${gamma.y}`;
+    if(table.has(key)) {
+      let d = i * m + table.get(key);
+      if(d > 0n && d <= BigInt(maxSearch)) return d;
+    }
+    gamma = pointAdd(gamma, neg_mG);
+  }
+  return null;
+}
+
+document.getElementById('eccAttackBtn').onclick = () => {
+  const out = document.getElementById('eccAttackOut');
+  const max = parseInt(document.getElementById('eccMaxSearch').value, 10);
+  if(!eccState.Qb) return alert("Run ECC encryption first to generate Q_B.");
+  
+  const t0 = performance.now();
+  const d_found = solveBSGS(eccState.Qb, max);
+  const t = (performance.now() - t0).toFixed(2);
+  
+  if(d_found !== null) {
+    out.innerHTML = `<span class="success">✓ ECDLP Solved (BSGS)</span>\n$d_B = ${d_found}$ extracted in ${t}ms.\nComplexity limited to $\\mathcal{O}(\\sqrt{${max}})$.`;
+  } else {
+    out.innerHTML = `<span class="alert">✗ Space exhausted</span>. No match in $[1, ${max}]$.`;
+  }
+  if(window.MathJax) MathJax.typesetPromise();
+};
+
+// ==========================================
+// 5. ENGLISH FREQUENCY CHART (PMF)
+// ==========================================
+function renderFrequencyChart() {
+  const ctxFreq = document.getElementById('freqChart').getContext('2d');
+  const labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
+  const data = FREQ_EN.map(f => (f * 100).toFixed(2));
+
+  new Chart(ctxFreq, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Expected Frequency (%)',
+        data: data,
+        backgroundColor: '#4f46e5',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family: 'Fira Code', size: 10 } } },
+        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (value) => value + '%' } }
+      }
+    }
+  });
+}
+
+// Init Flow
+renderFrequencyChart();
+document.getElementById('eccRunBtn').click();
+setTimeout(() => document.getElementById('runLengthExpBtn').click(), 200);
+setTimeout(() => document.getElementById('calcStatsBtn').click(), 400);
+</script>
+</body>
+</html>
