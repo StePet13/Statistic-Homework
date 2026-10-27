@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Penetration Process Simulator - Statistical Analysis</title>
+
+<!-- MathJax -->
+<script>
+  MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$']] } };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  :root {
+    --bg-main: #f4f6f9;
+    --sidebar-bg: #1a2b4c;
+    --sidebar-text: #e2e8f0;
+    --card-bg: #ffffff;
+    --text-dark: #2d3748;
+    --accent: #3182ce;
+    --border: #e2e8f0;
+    --theo-color: #e53e3e;
+    --emp-color: #38a169;
+  }
+  
+  body {
+    margin: 0; font-family: 'Segoe UI', system-ui, sans-serif;
+    background-color: var(--bg-main); color: var(--text-dark);
+    display: flex; height: 100vh; overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 320px; background-color: var(--sidebar-bg); color: var(--sidebar-text);
+    padding: 25px 20px; display: flex; flex-direction: column; gap: 20px;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 10; overflow-y: auto;
+  }
+  .sidebar h1 { margin: 0; font-size: 1.4rem; color: #fff; line-height: 1.3; }
+  .sidebar p { font-size: 0.85rem; color: #a0aec0; margin: 0 0 15px 0; }
+  
+  .control-group { margin-bottom: 12px; }
+  .control-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: #cbd5e0; }
+  .control-group select {
+    width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #4a5568;
+    background: #2d3748; color: #fff; font-size: 0.95rem; outline: none;
+  }
+  .control-group select:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  button.run-btn {
+    width: 100%; padding: 12px; background: var(--accent); color: white;
+    border: none; border-radius: 6px; font-weight: bold; font-size: 1rem;
+    cursor: pointer; transition: background 0.2s; margin-top: 10px;
+  }
+  button.run-btn:hover { background: #2b6cb0; }
+
+  .theory-note { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 6px; font-size: 0.8rem; line-height: 1.5; color: #cbd5e0; margin-top: auto;}
+  .theory-note h4 { margin: 0 0 8px 0; color: #fff; font-size: 0.9rem;}
+
+  /* MAIN CONTENT */
+  .main-content {
+    flex: 1; padding: 25px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  
+  .card {
+    background: var(--card-bg); border-radius: 8px; padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border);
+  }
+  .card-header {
+    font-size: 1.1rem; font-weight: 600; margin-bottom: 15px;
+    border-bottom: 2px solid var(--bg-main); padding-bottom: 10px; display: flex; justify-content: space-between;
+  }
+
+  /* CHARTS */
+  .chart-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+  .chart-box { height: 260px; position: relative; }
+  .chart-large { height: 320px; position: relative; width: 100%; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { padding: 12px 15px; text-align: right; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg-main); font-weight: 600; color: var(--text-dark); text-align: center; }
+  td:first-child { text-align: left; font-weight: 600; }
+  .theo-val { color: var(--theo-color); font-family: monospace; font-size: 1.05rem; }
+  .emp-val { color: var(--emp-color); font-family: monospace; font-size: 1.05rem; font-weight: bold; }
+  
+  /* REPORT / THEORY SECTION */
+  .report-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #4a5568;
+  }
+  .report-section h3 {
+    color: var(--sidebar-bg);
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 5px;
+  }
+  .report-section p { margin-bottom: 15px; }
+  .report-section ul { margin-top: 0; padding-left: 20px; }
+  .report-section li { margin-bottom: 8px; }
+
+</style>
+</head>
+<body>
+
+<!-- LEFT SIDEBAR: Controls & Theory -->
+<aside class="sidebar">
+  <div>
+    <h1>Stochastic Penetration Simulator</h1>
+    <p>LLN & CLT Empirical Verification</p>
+  </div>
+  
+  <div>
+    <div class="control-group">
+      <label>Systems (n):</label>
+      <select id="paramN">
+        <option value="1000">1,000</option>
+        <option value="10000" selected>10,000</option>
+        <option value="50000">50,000</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Attackers (m):</label>
+      <select id="paramM">
+        <option value="100">100</option>
+        <option value="500">500</option>
+        <option value="1000" selected>1,000</option>
+        <option value="2000">2,000</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Stochastic Increment ($X_i$):</label>
+      <select id="paramModel" onchange="toggleP()">
+        <option value="rademacher">Rademacher {-1, +1}</option>
+        <option value="bernoulli">Bernoulli {0, 1}</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Probability $p$ (Bernoulli only):</label>
+      <select id="paramP" disabled>
+        <option value="0.2">0.2</option>
+        <option value="0.5">0.5</option>
+        <option value="0.8">0.8</option>
+      </select>
+    </div>
+    <button class="run-btn" onclick="executeSimulation()">Generate Process</button>
+  </div>
+
+  <div class="theory-note">
+    <h4>Quick Reference</h4>
+    Use the main view to compare empirical sample values against the theoretical expected outcomes. Scroll down for a full theoretical discussion of the results.
+  </div>
+</aside>
+
+<!-- RIGHT MAIN CONTENT: Data & Viz -->
+<main class="main-content">
+  
+  <!-- Table Section -->
+  <div class="card">
+    <div class="card-header">
+      <span>Statistical Moments Summary (Step $n$)</span>
+      <span style="font-size:0.85rem; font-weight:normal; color:#718096;">Theoretical $\mu, \sigma^2$ vs Sample $\bar{x}, s^2$</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Expected Mean $\mathbb{E}$</th>
+          <th>Sample Mean $\bar{x}$</th>
+          <th>Expected Var $\text{Var}$</th>
+          <th>Sample Var $s^2$</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Score ($S_n$)</td>
+          <td class="theo-val" id="t-sn-m"></td><td class="emp-val" id="e-sn-m"></td>
+          <td class="theo-val" id="t-sn-v"></td><td class="emp-val" id="e-sn-v"></td>
+        </tr>
+        <tr>
+          <td>Average Score ($S_n/n$)</td>
+          <td class="theo-val" id="t-snn-m"></td><td class="emp-val" id="e-snn-m"></td>
+          <td class="theo-val" id="t-snn-v"></td><td class="emp-val" id="e-snn-v"></td>
+        </tr>
+        <tr>
+          <td>Normalized Score ($S_n/\sqrt{n}$)</td>
+          <td class="theo-val" id="t-snsqrt-m"></td><td class="emp-val" id="e-snsqrt-m"></td>
+          <td class="theo-val" id="t-snsqrt-v"></td><td class="emp-val" id="e-snsqrt-v"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Trajectory Section -->
+  <div class="card">
+    <div class="card-header">Law of Large Numbers: Trajectories of $S_i/i$ (Subset of Attackers)</div>
+    <div class="chart-large"><canvas id="chart-trajectory"></canvas></div>
+  </div>
+
+  <!-- Distributions Section -->
+  <div class="card">
+    <div class="card-header">Cross-Sectional Distributions & Variance Scaling</div>
+    <div class="chart-row">
+      <div class="chart-box"><canvas id="chart-dist-sn"></canvas></div>
+      <div class="chart-box"><canvas id="chart-dist-snn"></canvas></div>
+      <div class="chart-box"><canvas id="chart-dist-snsqrt"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Detailed Theoretical Report Section -->
+  <div class="card">
+    <div class="card-header">Theoretical Analysis & Contextual Interpretation</div>
+    <div class="report-section">
+      
+      <div>
+        <h3>1. The Stochastic Model</h3>
+        <p>The penetration process is modeled as a random walk, where the increment $X_i$ represents the outcome of an attack on the $i$-th system. The simulation implements two random variable models:</p>
+        <ul>
+          <li><strong>Bernoulli Model:</strong> $X_i \in \{0, 1\}$ with $P(X_i=1)=p$. This models a binary success/failure rate where the expected value is $\mu = p$ and variance is $\sigma^2 = p(1-p)$.</li>
+          <li><strong>Rademacher Model:</strong> $X_i \in \{-1, +1\}$ with $p=0.5$. This models a symmetric zero-sum scenario (e.g., gain or lose a foothold) where $\mu = 0$ and $\sigma^2 = 1$.</li>
+        </ul>
+
+        <h3>2. The Law of Large Numbers (LLN)</h3>
+        <p>The trajectory chart explicitly demonstrates the <strong>Weak Law of Large Numbers</strong>. Let $S_n = \sum_{i=1}^n X_i$. The LLN states that the sample average converges in probability to the expected value:</p>
+        <p style="text-align:center;">$$\lim_{n \to \infty} P\left(\left| \frac{S_n}{n} - \mu \right| > \epsilon\right) = 0$$</p>
+        <p>Visually, this is represented by the "funnel effect". As the number of systems $n$ increases, the random fluctuations of individual attackers cancel out, and all trajectories tightly hug the red theoretical expected value line ($\mathbb{E}[X]$).</p>
+      </div>
+
+      <div>
+        <h3>3. Variance Scaling and Normalization</h3>
+        <p>The three histograms highlight the crucial role of scaling factors in probability theory. By analyzing the theoretical variance formulas, we understand why only one normalization leads to a stable distribution:</p>
+        <ul>
+          <li><strong>$S_n$ (Total Score):</strong> $\text{Var}(S_n) = n\sigma^2$. The variance grows linearly with $n$. As seen in the first histogram, the distribution spreads out infinitely, making absolute bounds impossible to define for large $n$.</li>
+          <li><strong>$S_n/n$ (Average Score):</strong> $\text{Var}(S_n/n) = \frac{\sigma^2}{n}$. The variance shrinks towards zero. The middle histogram collapses into a single deterministic spike (a Dirac delta), proving the LLN.</li>
+          <li><strong>$S_n/\sqrt{n}$ (Normalized):</strong> $\text{Var}(S_n/\sqrt{n}) = \sigma^2$. This is the "Goldilocks" scaling. The variance remains completely constant, preserving the shape of the distribution regardless of how large $n$ becomes.</li>
+        </ul>
+
+        <h3>4. Central Limit Theorem & Cyber Context</h3>
+        <p>By keeping the variance constant, the $S_n/\sqrt{n}$ scaling exposes the <strong>Central Limit Theorem (CLT)</strong>. For the Rademacher case, the normalized sum converges in distribution to the Standard Normal $\mathcal{N}(0,1)$, which perfectly matches the overlaid red PDF curve in the final chart.</p>
+        <p><strong>Contextual Interpretation:</strong> In a cybersecurity scenario, $n$ represents the scale of the target infrastructure. A massive $n$ means attackers' overall success <em>rate</em> ($S_n/n$) becomes perfectly predictable, eliminating the "luck" factor. The variable $m$ represents the population of attackers; increasing $m$ provides a richer statistical sample, smoothing out empirical distributions without altering the underlying mathematical limits.</p>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<script>
+// Logic & State
+let state = { n: 0, m: 0, mu: 0, sigma2: 0, model: '' };
+let results = { paths: [], sn: [], snn: [], snsqrt: [] };
+let chartInstances = {};
+
+// Math Utilities
+const mean = arr => arr.reduce((a,b) => a+b, 0) / arr.length;
+const variance = (arr, m) => arr.length > 1 ? arr.reduce((a,b) => a + (b-m)**2, 0) / (arr.length - 1) : 0;
+const stdNormPdf = x => Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+
+function buildHistogram(data, bins = 40) {
+  let min = Math.min(...data), max = Math.max(...data);
+  if (min === max) { min -= 0.5; max += 0.5; }
+  const width = (max - min) / bins;
+  let counts = new Array(bins).fill(0);
+  data.forEach(v => {
+    let idx = Math.floor((v - min) / width);
+    counts[Math.min(idx, bins - 1)]++;
+  });
+  return {
+    labels: Array.from({length: bins}, (_, i) => (min + (i + 0.5) * width).toFixed(2)),
+    density: counts.map(c => c / (data.length * width))
+  };
+}
+
+function toggleP() {
+  document.getElementById('paramP').disabled = document.getElementById('paramModel').value !== 'bernoulli';
+}
+
+function executeSimulation() {
+  state.n = parseInt(document.getElementById('paramN').value);
+  state.m = parseInt(document.getElementById('paramM').value);
+  state.model = document.getElementById('paramModel').value;
+  const p = parseFloat(document.getElementById('paramP').value);
+  
+  state.mu = state.model === 'bernoulli' ? p : 0;
+  state.sigma2 = state.model === 'bernoulli' ? p * (1 - p) : 1;
+
+  results = { paths: [], sn: [], snn: [], snsqrt: [] };
+  const drawPaths = Math.min(state.m, 40);
+  const step = Math.ceil(state.n / 250); // Downsample for performance
+
+  for (let j = 0; j < state.m; j++) {
+    let sum = 0, path = [];
+    for (let i = 1; i <= state.n; i++) {
+      sum += state.model === 'bernoulli' ? (Math.random() < p ? 1 : 0) : (Math.random() < 0.5 ? 1 : -1);
+      if (j < drawPaths && (i % step === 0 || i === state.n)) path.push({x: i, y: sum / i});
+    }
+    if (j < drawPaths) results.paths.push(path);
+    results.sn.push(sum);
+    results.snn.push(sum / state.n);
+    results.snsqrt.push(sum / Math.sqrt(state.n));
+  }
+  
+  updateDashboard();
+}
+
+function updateDashboard() {
+  // 1. Table
+  const m_sn = mean(results.sn), v_sn = variance(results.sn, m_sn);
+  const m_snn = mean(results.snn), v_snn = variance(results.snn, m_snn);
+  const m_snsqrt = mean(results.snsqrt), v_snsqrt = variance(results.snsqrt, m_snsqrt);
+  const f = n => n.toFixed(5);
+
+  document.getElementById('t-sn-m').textContent = f(state.n * state.mu);
+  document.getElementById('e-sn-m').textContent = f(m_sn);
+  document.getElementById('t-sn-v').textContent = f(state.n * state.sigma2);
+  document.getElementById('e-sn-v').textContent = f(v_sn);
+
+  document.getElementById('t-snn-m').textContent = f(state.mu);
+  document.getElementById('e-snn-m').textContent = f(m_snn);
+  document.getElementById('t-snn-v').textContent = f(state.sigma2 / state.n);
+  document.getElementById('e-snn-v').textContent = f(v_snn);
+
+  document.getElementById('t-snsqrt-m').textContent = f(Math.sqrt(state.n) * state.mu);
+  document.getElementById('e-snsqrt-m').textContent = f(m_snsqrt);
+  document.getElementById('t-snsqrt-v').textContent = f(state.sigma2);
+  document.getElementById('e-snsqrt-v').textContent = f(v_snsqrt);
+
+  // 2. Charts Cleanup
+  Object.values(chartInstances).forEach(c => c.destroy());
+
+  // Trajectory Chart
+  const ctxTraj = document.getElementById('chart-trajectory').getContext('2d');
+  const dsTraj = results.paths.map(p => ({
+    data: p, borderColor: '#a0aec0', borderWidth: 1, fill: false, pointRadius: 0, tension: 0.1, opacity: 0.3
+  }));
+  dsTraj.push({
+    label: 'E[X]', data: [{x:0, y:state.mu}, {x:state.n, y:state.mu}],
+    borderColor: 'red', borderWidth: 2, borderDash: [4,4], pointRadius: 0, zIndex: 10
+  });
+
+  chartInstances.traj = new Chart(ctxTraj, {
+    type: 'line', data: { datasets: dsTraj },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: { type: 'linear', title: {display: true, text: 'Steps (n)'} } } }
+  });
+
+  // Histogram Charts
+  const renderHist = (id, data, title, isCLT = false) => {
+    const hist = buildHistogram(data);
+    let ds = [{ label: 'Density', data: hist.density, backgroundColor: '#3182ce', categoryPercentage: 1.0, barPercentage: 1.0 }];
+    if (isCLT) ds.push({ label: 'N(0,1)', data: hist.labels.map(x => stdNormPdf(parseFloat(x))), type: 'line', borderColor: 'red', borderWidth: 2, pointRadius: 0, fill: false });
+    
+    chartInstances[id] = new Chart(document.getElementById(id).getContext('2d'), {
+      type: 'bar', data: { labels: hist.labels, datasets: ds },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: isCLT }, title: {display: true, text: title} }, scales: { x: { ticks: {maxTicksLimit: 5} } } }
+    });
+  };
+
+  renderHist('chart-dist-sn', results.sn, 'S_n (Diverging Var)');
+  renderHist('chart-dist-snn', results.snn, 'S_n / n (Collapsing Var)');
+  renderHist('chart-dist-snsqrt', results.snsqrt, 'S_n / √n (Constant Var)', state.model === 'rademacher');
+}
+
+window.onload = () => { toggleP(); executeSimulation(); };
+</script>
+</body>
+</html>
