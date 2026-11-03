@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Homework — Welford's Recurrence & Sampling Estimators</title>
+
+<!-- MathJax Configuration -->
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']]
+    }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  :root {
+    --bg-main: #f4f6f9;
+    --sidebar-bg: #162447;
+    --sidebar-text: #e2e8f0;
+    --card-bg: #ffffff;
+    --text-dark: #1e293b;
+    --text-muted: #64748b;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --border: #e2e8f0;
+    --theo-color: #dc2626;
+    --emp-color: #059669;
+    --warn-color: #d97706;
+    --code-bg: #0f172a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-dark);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 330px;
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-shadow: 3px 0 12px rgba(0,0,0,0.12);
+    z-index: 10;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .sidebar h1 { margin: 0; font-size: 1.3rem; color: #fff; line-height: 1.3; font-weight: 700; }
+  .sidebar .subtitle { font-size: 0.82rem; color: #94a3b8; margin: 4px 0 0 0; line-height: 1.4; }
+  .divider { height: 1px; background: rgba(255,255,255,0.12); margin: 4px 0; }
+
+  .control-group { margin-bottom: 12px; }
+  .control-group label {
+    display: block; font-size: 0.82rem; font-weight: 600;
+    margin-bottom: 5px; color: #cbd5e1;
+  }
+  .control-group select {
+    width: 100%; padding: 8px 10px; border-radius: 5px;
+    border: 1px solid #334155; background: #1e293b; color: #fff;
+    font-size: 0.9rem; outline: none;
+  }
+  .control-group select:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  button.run-btn {
+    width: 100%; padding: 11px; background: var(--accent); color: white;
+    border: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem;
+    cursor: pointer; transition: background 0.2s; margin-top: 6px;
+  }
+  button.run-btn:hover:not(:disabled) { background: var(--accent-hover); }
+
+  button.exp-btn {
+    width: 100%; padding: 10px; background: #0d9488; color: white;
+    border: none; border-radius: 6px; font-weight: 600; font-size: 0.9rem;
+    cursor: pointer; transition: background 0.2s; margin-top: 8px;
+  }
+  button.exp-btn:hover:not(:disabled) { background: #0f766e; }
+  button:disabled { opacity: 0.65; cursor: wait; }
+
+  .sidebar-code {
+    background: var(--code-bg); padding: 12px; border-radius: 6px;
+    font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.76rem;
+    color: #e2e8f0; border: 1px solid #334155; line-height: 1.5;
+  }
+  .sidebar-code .comment { color: #64748b; }
+  .sidebar-code .kw { color: #38bdf8; }
+  .sidebar-code .hl { color: #fde047; font-weight: bold; }
+
+  .param-badge {
+    background: rgba(255,255,255,0.07); padding: 12px; border-radius: 6px;
+    font-size: 0.82rem; line-height: 1.6; color: #e2e8f0;
+  }
+
+  /* MAIN CONTENT */
+  .main-content {
+    flex: 1; padding: 28px 34px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 26px;
+  }
+
+  .card {
+    background: var(--card-bg); border-radius: 8px; padding: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid var(--border);
+  }
+  .card-header {
+    font-size: 1.15rem; font-weight: 700; margin-bottom: 16px;
+    border-bottom: 2px solid var(--bg-main); padding-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    color: #0f172a;
+  }
+  .badge {
+    font-size: 0.78rem; font-weight: 600; padding: 4px 10px;
+    border-radius: 999px; background: #e0e7ff; color: #1e40af;
+  }
+
+  /* DERIVATION GRID */
+  .deriv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .deriv-box {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid var(--accent);
+    padding: 16px 18px; border-radius: 6px; font-size: 0.92rem; line-height: 1.65;
+  }
+  .deriv-box h4 { margin: 0 0 8px 0; color: #1e3a8a; font-size: 1rem; }
+  .deriv-box p { margin: 0 0 10px 0; }
+
+  pre.code-block {
+    background: var(--code-bg); color: #f8fafc; padding: 14px 16px;
+    border-radius: 6px; font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.84rem; overflow-x: auto; margin: 10px 0 0 0; line-height: 1.55;
+  }
+
+  /* TABLES */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 8px; }
+  th, td { padding: 11px 14px; text-align: right; border-bottom: 1px solid var(--border); }
+  th { background: #f1f5f9; font-weight: 600; color: #334155; text-align: center; }
+  td:first-child { text-align: left; font-weight: 600; color: #0f172a; }
+  .theo-val { color: var(--theo-color); font-family: monospace; font-size: 0.98rem; font-weight: 600; }
+  .emp-val { color: var(--emp-color); font-family: monospace; font-size: 0.98rem; font-weight: 700; }
+  .warn-val { color: var(--warn-color); font-family: monospace; font-size: 0.95rem; }
+  .err-val { color: var(--text-muted); font-family: monospace; font-size: 0.88rem; }
+
+  /* CHARTS */
+  .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .chart-box { height: 300px; position: relative; border: 1px solid #f1f5f9; padding: 10px; border-radius: 6px; background: #ffffff; }
+
+  /* THEORETICAL REPORT SECTION */
+  .essay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .essay-block {
+    background: #fcfcfd; border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 18px 20px; line-height: 1.7; font-size: 0.93rem;
+  }
+  .essay-block h3 {
+    margin: 0 0 10px 0; font-size: 1.02rem; color: #1e3a8a;
+    border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;
+  }
+  .essay-block p { margin: 0 0 10px 0; color: #334155; }
+  .essay-block ul { margin: 0 0 10px 0; padding-left: 20px; color: #334155; }
+  .essay-block li { margin-bottom: 6px; }
+
+  @media (max-width: 1100px) {
+    body { flex-direction: column; height: auto; overflow: auto; }
+    .sidebar { width: 100%; }
+    .deriv-grid, .chart-grid-2, .essay-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LEFT SIDEBAR -->
+<aside class="sidebar">
+  <div>
+    <h1>Welford & Sampling Lab</h1>
+    <div class="subtitle">Ex. 1: Welford's Recurrence Formulas<br>Ex. 2: Sampling Mean & Variance ($[0,10]$)</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div>
+    <div class="control-group">
+      <label>Score Distribution on $[0, 10]$:</label>
+      <select id="distSelect" onchange="onDistChange()">
+        <option value="binomial" selected>Binomial Bin(10, p) ∈ {0..10}</option>
+        <option value="disc_unif">Discrete Uniform U{0..10}</option>
+        <option value="cont_unif">Continuous Uniform U(0, 10)</option>
+        <option value="triangular">Symmetric Triangular Tri(0, 10, 5)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Success Prob $p$ (for Binomial):</label>
+      <select id="paramP" onchange="runSingleSimulation()">
+        <option value="0.25">p = 0.25 (Skewed Right, μ = 2.5)</option>
+        <option value="0.50">p = 0.50 (Symmetric, μ = 5.0)</option>
+        <option value="0.70" selected>p = 0.70 (Skewed Left, μ = 7.0)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Systems per Hacker ($n$):</label>
+      <select id="paramN" onchange="runSingleSimulation()">
+        <option value="10">n = 10 (Small Sample)</option>
+        <option value="50">n = 50 (Moderate Sample)</option>
+        <option value="200" selected>n = 200 (Large Sample)</option>
+        <option value="1000">n = 1,000 (Asymptotic Regime)</option>
+        <option value="5000">n = 5,000 (High Precision)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Number of Hackers ($m$):</label>
+      <select id="paramM" onchange="runSingleSimulation()">
+        <option value="100">m = 100 Hackers</option>
+        <option value="500">m = 500 Hackers</option>
+        <option value="1000" selected>m = 1,000 Hackers</option>
+        <option value="3000">m = 3,000 Hackers</option>
+      </select>
+    </div>
+
+    <button class="run-btn" id="btnSingle" onclick="runSingleSimulation()">▶ Run Welford Simulation</button>
+    <button class="exp-btn" id="btnMultiN" onclick="runMultiNExperiment()">🔬 Run Multi-n Sensitivity Study</button>
+  </div>
+
+  <div class="param-badge" id="theoBadge">
+    <!-- Filled dynamically -->
+  </div>
+
+  <div class="sidebar-code">
+    <div class="comment">// Ex.1: Welford 3-Line Core Logic</div>
+    <div><span class="kw">for</span> (<span class="kw">let</span> k = 1; k &lt;= n; k++) {</div>
+    <div>&nbsp;&nbsp;<span class="hl">const d = x - mean;</span></div>
+    <div>&nbsp;&nbsp;<span class="hl">mean += d / k;</span></div>
+    <div>&nbsp;&nbsp;<span class="hl">ss += d * (x - mean);</span></div>
+    <div>}</div>
+    <div><span class="kw">const</span> s2 = ss / (n - 1);</div>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+
+  <!-- SECTION 1: EX 1 DERIVATION & CODE -->
+  <section class="card">
+    <div class="card-header">
+      <span>Exercise 1 — Mathematical Derivation of Knuth's & Welford's Recurrence Formulas</span>
+      <span class="badge">Analytical Derivation & 3-Line Algorithm</span>
+    </div>
+
+    <div class="deriv-grid">
+      <div class="deriv-box">
+        <h4>1. Knuth's Recurrence for the Mean ($\bar{x}_k$)</h4>
+        <p>Given $k$ observations $x_1, \dots, x_k$, separate the $k$-th score $x_k$ from the previous $k-1$ scores:</p>
+        $$\bar{x}_k = \frac{1}{k}\left(\sum_{i=1}^{k-1} x_i + x_k\right) = \frac{(k-1)\bar{x}_{k-1} + x_k}{k}$$
+        <p>Rearranging terms yields <strong>Knuth's recurrence formula</strong>:</p>
+        $$\boxed{\bar{x}_k = \bar{x}_{k-1} + \frac{x_k - \bar{x}_{k-1}}{k}}$$
+        <p>From this update, we obtain two fundamental algebraic identities linking the pre-update residual $\delta_k = x_k - \bar{x}_{k-1}$ and the post-update residual $\delta'_k = x_k - \bar{x}_k$:</p>
+        $$\bar{x}_k - \bar{x}_{k-1} = \frac{x_k - \bar{x}_{k-1}}{k}, \qquad x_k - \bar{x}_k = \frac{k-1}{k}(x_k - \bar{x}_{k-1})$$
+      </div>
+
+      <div class="deriv-box">
+        <h4>2. Welford's Recurrence for Sum of Squares ($SS_k$) & Variance</h4>
+        <p>Define the sum of squared deviations $SS_k = \sum_{i=1}^k (x_i - \bar{x}_k)^2$. Isolate the $k$-th term and add/subtract $\bar{x}_{k-1}$ inside the remaining sum:</p>
+        $$SS_k = \sum_{i=1}^{k-1}\left[(x_i - \bar{x}_{k-1}) - (\bar{x}_k - \bar{x}_{k-1})\right]^2 + (x_k - \bar{x}_k)^2$$
+        <p>Since $\sum_{i=1}^{k-1}(x_i - \bar{x}_{k-1}) = 0$, the cross-term vanishes:</p>
+        $$SS_k = SS_{k-1} + (k-1)(\bar{x}_k - \bar{x}_{k-1})^2 + (x_k - \bar{x}_k)^2$$
+        <p>Substituting the two residual identities from Step 1 simplifies the increment to the product of the pre-update and post-update residuals:</p>
+        $$(k-1)\frac{(x_k - \bar{x}_{k-1})^2}{k^2} + \frac{(k-1)^2}{k^2}(x_k - \bar{x}_{k-1})^2 = \frac{k-1}{k}(x_k - \bar{x}_{k-1})^2 = (x_k - \bar{x}_{k-1})(x_k - \bar{x}_k)$$
+        $$\boxed{SS_k = SS_{k-1} + (x_k - \bar{x}_{k-1})(x_k - \bar{x}_k)} \quad \Longrightarrow \quad \boxed{s_k^2 = \frac{SS_k}{k-1}}$$
+      </div>
+    </div>
+
+    <div style="margin-top: 18px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start;">
+      <div>
+        <h4 style="margin: 0 0 6px 0; color: #1e3a8a; font-size: 0.95rem;">Complete JavaScript Implementation (3-Line Core Logic)</h4>
+        <pre class="code-block">function welfordUpdate(scores) {
+  let mean = 0.0, ss = 0.0;
+  for (let k = 1; k <= scores.length; k++) {
+    const x = scores[k - 1];
+    // --- CORE LOGIC (3 LINES) ---
+    const delta = x - mean;        // 1. Pre-update residual: (x_k - mean_{k-1})
+    mean += delta / k;             // 2. Knuth mean update:   mean_k = mean_{k-1} + delta / k
+    ss += delta * (x - mean);      // 3. Welford SS update:   SS_k = SS_{k-1} + delta * (x_k - mean_k)
+  }
+  return { mean: mean, ss: ss, sampleVar: ss / (scores.length - 1), popVar: ss / scores.length };
+}</pre>
+      </div>
+
+      <div class="deriv-box" style="border-left-color: #059669; margin-top: 22px;">
+        <h4 style="color: #065f46;">Numerical Stability Benchmark (Welford vs Naive One-Pass)</h4>
+        <p style="font-size: 0.86rem;">
+          The naive textbook formula $s^2 = \frac{1}{n-1}\left(\sum x_i^2 - n\bar{x}^2\right)$ suffers from <strong>catastrophic cancellation</strong> in IEEE-754 double precision (53-bit mantissa) when data has a large offset $C$. Below is a live test on a deterministic reference sequence $x_i \in \{0,\dots,10\}$ ($N=1,000$) shifted by $C = 10^9$:
+        </p>
+        <div id="stabilityBenchmark" style="font-family: monospace; font-size: 0.84rem; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
+          Computing benchmark...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: EX 2 STATISTICAL COMPARISON TABLE -->
+  <section class="card">
+    <div class="card-header">
+      <span>Exercise 2 — Statistical Comparison across $m$ Hackers (Empirical vs. Theoretical)</span>
+      <span class="badge" id="simConfigBadge">n = 200, m = 1,000</span>
+    </div>
+    <p style="margin: 0 0 12px 0; font-size: 0.9rem; color: var(--text-muted);">
+      Each of the $m$ hackers attempts $n$ systems, receiving i.i.d. scores $X_{j,1}, \dots, X_{j,n} \in [0, 10]$. Using Welford's recurrence, we compute each hacker's sample mean $\bar{X}_j$ and unbiased sample variance $S_j^2 = SS_{j,n}/(n-1)$. The table below compares the averages and variances of these estimators across all $m$ hackers against exact theoretical values.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Estimator / Statistic across $m$ Hackers</th>
+          <th>Theoretical Formula</th>
+          <th>Theoretical Value</th>
+          <th>Empirical Value ($m$ Hackers)</th>
+          <th>Absolute Error</th>
+          <th>Statistical Property Verified</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Average of Sampling Means ($\frac{1}{m}\sum \bar{X}_j$)</td>
+          <td>$\mathbb{E}[\bar{X}] = \mu$</td>
+          <td class="theo-val" id="tb-theo-mean">-</td>
+          <td class="emp-val" id="tb-emp-mean">-</td>
+          <td class="err-val" id="tb-err-mean">-</td>
+          <td>Unbiasedness of Sample Mean ($\mathbb{E}[\bar{X}] = \mu$)</td>
+        </tr>
+        <tr>
+          <td>Average of Unbiased Variances ($\frac{1}{m}\sum S_j^2$)</td>
+          <td>$\mathbb{E}[S^2] = \sigma^2$</td>
+          <td class="theo-val" id="tb-theo-var">-</td>
+          <td class="emp-val" id="tb-emp-var">-</td>
+          <td class="err-val" id="tb-err-var">-</td>
+          <td>Unbiasedness of Sample Variance (Bessel's $n-1$)</td>
+        </tr>
+        <tr>
+          <td>Average of Biased Variances ($\frac{1}{m}\sum \hat{\sigma}_j^2$, div. by $n$)</td>
+          <td>$\mathbb{E}[\hat{\sigma}^2] = \frac{n-1}{n}\sigma^2$</td>
+          <td class="warn-val" id="tb-theo-bvar">-</td>
+          <td class="warn-val" id="tb-emp-bvar">-</td>
+          <td class="err-val" id="tb-err-bvar">-</td>
+          <td>Downward Bias $-\frac{\sigma^2}{n}$ without Bessel's correction</td>
+        </tr>
+        <tr>
+          <td>Variance of Sampling Means ($\text{Var}_m(\bar{X}_j)$)</td>
+          <td>$\text{Var}(\bar{X}) = \frac{\sigma^2}{n}$</td>
+          <td class="theo-val" id="tb-theo-vmean">-</td>
+          <td class="emp-val" id="tb-emp-vmean">-</td>
+          <td class="err-val" id="tb-err-vmean">-</td>
+          <td>Precision scales as $O(1/n)$ (LLN / Consistency)</td>
+        </tr>
+        <tr>
+          <td>Variance of Sampling Variances ($\text{Var}_m(S_j^2)$)</td>
+          <td>$\frac{1}{n}\left(\mu_4 - \frac{n-3}{n-1}\sigma^4\right)$</td>
+          <td class="theo-val" id="tb-theo-vvar">-</td>
+          <td class="emp-val" id="tb-emp-vvar">-</td>
+          <td class="err-val" id="tb-err-vvar">-</td>
+          <td>Variance of $S^2$ collapses as $O(1/n)$</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SECTION 3: VISUAL DIAGNOSTICS (TRAJECTORIES & DISTRIBUTIONS) -->
+  <section class="card">
+    <div class="card-header">
+      <span>Welford Online Trajectories & Cross-Sectional Sampling Distributions</span>
+      <span class="badge">Visual Convergence Analysis</span>
+    </div>
+
+    <div class="chart-grid-2" style="margin-bottom: 20px;">
+      <div class="chart-box">
+        <canvas id="chartTrajMean"></canvas>
+      </div>
+      <div class="chart-box">
+        <canvas id="chartTrajVar"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-grid-2">
+      <div class="chart-box">
+        <canvas id="chartDistMean"></canvas>
+      </div>
+      <div class="chart-box">
+        <canvas id="chartDistVar"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: MULTI-N SENSITIVITY STUDY -->
+  <section class="card">
+    <div class="card-header">
+      <span>Sensitivity Analysis — Effect of Increasing $n$ ($n \in \{5, 10, 25, 50, 100, 250, 500, 1000\}$)</span>
+      <span class="badge">Estimator Consistency & Variance Decay</span>
+    </div>
+    <p style="margin: 0 0 14px 0; font-size: 0.9rem; color: var(--text-muted);">
+      To investigate how the number of attempted systems $n$ affects the sampling estimators, we repeat the $m$-hacker experiment across 8 increasing sample sizes $n$. Observe how $\text{Var}(\bar{X})$ and $\text{Var}(S^2)$ decay at rate $1/n$, and how the unbiased estimator $S^2$ stays centered on $\sigma^2$ for all $n$ whereas the biased estimator $\hat{\sigma}^2 = SS_n/n$ severely underestimates $\sigma^2$ at small $n$.
+    </p>
+
+    <div class="chart-grid-2" style="margin-bottom: 18px;">
+      <div class="chart-box">
+        <canvas id="chartMultiNVar"></canvas>
+      </div>
+      <div class="chart-box">
+        <canvas id="chartMultiNBias"></canvas>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Systems ($n$)</th>
+          <th>Avg. Sample Mean $\overline{\bar{X}}$ (Theo $\mu$)</th>
+          <th>Avg. Unbiased Var $\overline{S^2}$ (Theo $\sigma^2$)</th>
+          <th>Avg. Biased Var $\overline{\hat{\sigma}^2}$</th>
+          <th>Empirical $\text{Var}(\bar{X})$</th>
+          <th>Theoretical $\frac{\sigma^2}{n}$</th>
+          <th>Empirical $\text{Var}(S^2)$</th>
+          <th>Theoretical $\text{Var}(S^2)$</th>
+        </tr>
+      </thead>
+      <tbody id="multiNTableBody">
+        <!-- Populated by JS -->
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SECTION 5: COMPREHENSIVE THEORETICAL & DISCURSIVE REPORT -->
+  <section class="card">
+    <div class="card-header">
+      <span>Theoretical Discussion & Inferential Statistics Interpretation</span>
+      <span class="badge">Academic Report</span>
+    </div>
+
+    <div class="essay-grid">
+      <div class="essay-block">
+        <h3>1. Why Welford's Algorithm Outperforms Naive Variance Formulas</h3>
+        <p>
+          In computational statistics, computing the sample variance via the textbook one-pass expansion
+          $s^2 = \frac{1}{n-1}\left(\sum_{i=1}^n x_i^2 - n\bar{x}^2\right)$ is a classic anti-pattern. When the variance $\sigma^2$ is small relative to the square of the mean $\mu^2$, the terms $\sum x_i^2$ and $n\bar{x}^2$ become two huge, nearly identical floating-point numbers. Subtracting them eliminates the most significant bits—a phenomenon known as <strong>catastrophic cancellation</strong>—which can destroy precision or even yield negative variances.
+        </p>
+        <p>
+          By maintaining the running mean $\bar{x}_k$ (via Knuth's update) and accumulating the product of centered residuals $(x_k - \bar{x}_{k-1})(x_k - \bar{x}_k)$ into $SS_k$, <strong>Welford's algorithm</strong> keeps all intermediate terms on the scale of $\sigma$ rather than $\mu$. Furthermore, it operates in a <strong>single streaming pass</strong> with $O(1)$ memory complexity, making it ideal for real-time telemetry and cybersecurity monitoring where $n$ grows continuously.
+        </p>
+      </div>
+
+      <div class="essay-block">
+        <h3>2. Unbiasedness of $\bar{X}$ and $S^2$ & The Role of Bessel's Correction</h3>
+        <p>
+          Our simulation across $m$ hackers empirically confirms two foundational theorems of sampling theory:
+          $$\mathbb{E}[\bar{X}] = \mu \qquad \text{and} \qquad \mathbb{E}[S^2] = \sigma^2$$
+          By linearity of expectation, $\mathbb{E}[\bar{X}] = \frac{1}{n}\sum_{i=1}^n \mathbb{E}[X_i] = \mu$. For the variance, however, measuring squared deviations from the sample mean $\bar{X}$ rather than the true mean $\mu$ systematically makes the sum of squares smaller, because $\bar{X}$ is the exact value that minimizes $\sum_{i=1}^n (X_i - c)^2$.
+        </p>
+        <p>
+          Algebraically, expanding $\sum_{i=1}^n (X_i - \mu)^2 = \sum_{i=1}^n \left[(X_i - \bar{X}) + (\bar{X} - \mu)\right]^2$ yields:
+          $$\sum_{i=1}^n (X_i - \bar{X})^2 = \sum_{i=1}^n (X_i - \mu)^2 - n(\bar{X} - \mu)^2$$
+          Taking expectations on both sides gives $\mathbb{E}[SS_n] = n\sigma^2 - n\,\text{Var}(\bar{X}) = n\sigma^2 - n\left(\frac{\sigma^2}{n}\right) = (n-1)\sigma^2$. Dividing by $n-1$ (<strong>Bessel's correction</strong>) compensates for the single degree of freedom lost by estimating $\mu$ with $\bar{X}$.
+        </p>
+      </div>
+
+      <div class="essay-block">
+        <h3>3. Why These Results Are Fundamental in Inferential Statistics</h3>
+        <p>
+          In practical applications—such as assessing network security or auditing penetration resistance—we never observe the entire population of all possible attack trajectories, nor do we know the true analytical parameters $\mu$ and $\sigma^2$ a priori. Instead, a security analyst observes <strong>one finite sample</strong> of $n$ penetration attempts.
+        </p>
+        <ul>
+          <li><strong>Point Estimation without Systematic Bias:</strong> Unbiasedness guarantees that using $\bar{X}$ to estimate expected damage and $S^2$ to estimate volatility does not systematically under- or over-state risk across repeated audits.</li>
+          <li><strong>Confidence Intervals & Hypothesis Testing:</strong> Because $\bar{X} \stackrel{\text{approx}}{\sim} \mathcal{N}(\mu, \sigma^2/n)$ by the Central Limit Theorem and $S^2$ is a consistent estimator of $\sigma^2$, replacing the unknown $\sigma$ with $S$ allows us to construct Student-$t$ confidence intervals $\bar{X} \pm t_{\alpha/2, n-1}\frac{S}{\sqrt{n}}$ and perform rigorous statistical hypothesis tests.</li>
+        </ul>
+      </div>
+
+      <div class="essay-block">
+        <h3>4. Effect of Increasing $n$: Estimator Variance Decay & Consistency</h3>
+        <p>
+          Repeating the experiment for increasing values of $n$ demonstrates how sample size governs estimation reliability:
+        </p>
+        <ul>
+          <li><strong>Variance of the Sample Mean:</strong> $\text{Var}(\bar{X}) = \frac{\sigma^2}{n}$. Doubling the precision (halving the standard error $\sigma/\sqrt{n}$) requires quadrupling the number of tested systems $n$.</li>
+          <li><strong>Variance of the Sample Variance:</strong> For i.i.d. observations with fourth central moment $\mu_4 = \mathbb{E}[(X-\mu)^4]$, the exact variance of $S^2$ is:
+          $$\text{Var}(S^2) = \frac{1}{n}\left(\mu_4 - \frac{n-3}{n-1}\sigma^4\right)$$
+          As $n \to \infty$, both $\text{Var}(\bar{X}) \to 0$ and $\text{Var}(S^2) \to 0$ at rate $O(1/n)$.</li>
+          <li><strong>Consistency (Convergence in Probability):</strong> By Chebyshev's inequality, any unbiased estimator whose variance shrinks to zero as $n \to \infty$ converges in probability to the true parameter ($\bar{X} \xrightarrow{P} \mu$ and $S^2 \xrightarrow{P} \sigma^2$). In the context of $m$ hackers and $n$ systems, when $n$ is small, individual hackers' sample means and variances fluctuate wildly due to luck; when $n$ is large, every single hacker's trajectory accurately reveals the true underlying vulnerability $\mu$ and $\sigma^2$.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* =========================================================================
+   1. PROBABILITY DISTRIBUTIONS ON [0, 10] & EXACT THEORETICAL MOMENTS
+========================================================================= */
+function getDistributionConfig() {
+  const distType = document.getElementById('distSelect').value;
+  const p = parseFloat(document.getElementById('paramP').value);
+
+  if (distType === 'binomial') {
+    // Binomial(10, p) on {0, 1, ..., 10}
+    const N = 10;
+    const pmf = [];
+    const cdf = [];
+    const fact = x => x <= 1 ? 1 : x * fact(x - 1);
+    let cum = 0.0;
+    for (let k = 0; k <= N; k++) {
+      const comb = fact(N) / (fact(k) * fact(N - k));
+      const prob = comb * Math.pow(p, k) * Math.pow(1 - p, N - k);
+      pmf.push(prob);
+      cum += prob;
+      cdf.push(cum);
+    }
+    cdf[N] = 1.0; // Ensure exact upper bound
+
+    const mu = N * p;
+    const sigma2 = N * p * (1 - p);
+    let mu4 = 0;
+    for (let k = 0; k <= N; k++) mu4 += Math.pow(k - mu, 4) * pmf[k];
+
+    // Fast O(1) inverse-CDF sampler (1 Math.random() call instead of 10)
+    return {
+      name: `Binomial(10, p=${p})`,
+      mu, sigma2, mu4,
+      sample: () => {
+        const u = Math.random();
+        for (let k = 0; k <= N; k++) {
+          if (u <= cdf[k]) return k;
+        }
+        return N;
+      }
+    };
+  }
+
+  if (distType === 'disc_unif') {
+    // Discrete Uniform on {0, 1, ..., 10}
+    const mu = 5.0;
+    const sigma2 = 10.0; // ((11^2 - 1) / 12) = 10
+    let mu4 = 0;
+    for (let k = 0; k <= 10; k++) mu4 += Math.pow(k - mu, 4) / 11.0;
+
+    return {
+      name: `Discrete Uniform {0, ..., 10}`,
+      mu, sigma2, mu4,
+      sample: () => Math.floor(Math.random() * 11)
+    };
+  }
+
+  if (distType === 'cont_unif') {
+    // Continuous Uniform on [0, 10]
+    const mu = 5.0;
+    const sigma2 = 100.0 / 12.0; // 8.33333
+    const mu4 = 10000.0 / 80.0;  // 125.0
+
+    return {
+      name: `Continuous Uniform [0, 10]`,
+      mu, sigma2, mu4,
+      sample: () => Math.random() * 10.0
+    };
+  }
+
+  if (distType === 'triangular') {
+    // Symmetric Triangular on [0, 10] with mode 5 = U(0,5) + U(0,5)
+    const mu = 5.0;
+    const sigma2 = 25.0 / 6.0;   // 4.16667
+    const mu4 = 125.0 / 3.0;     // 2.4 * sigma^4 = 41.66667
+
+    return {
+      name: `Symmetric Triangular [0, 10]`,
+      mu, sigma2, mu4,
+      sample: () => (Math.random() * 5.0) + (Math.random() * 5.0)
+    };
+  }
+}
+
+/* =========================================================================
+   2. WELFORD'S ALGORITHM & STATISTICAL HELPERS
+========================================================================= */
+function runWelfordTrajectory(n, sampleFn, recordPath = false, stepInterval = 1) {
+  let mean = 0.0;
+  let ss = 0.0;
+  const pathMean = [];
+  const pathVar = [];
+
+  for (let k = 1; k <= n; k++) {
+    const x = sampleFn();
+    // --- WELFORD 3-LINE CORE LOGIC ---
+    const delta = x - mean;
+    mean += delta / k;
+    ss += delta * (x - mean);
+
+    if (recordPath && (k % stepInterval === 0 || k === n || k === 2)) {
+      pathMean.push({ x: k, y: mean });
+      if (k >= 2) pathVar.push({ x: k, y: ss / (k - 1) });
+    }
+  }
+
+  return {
+    mean: mean,
+    unbiasedVar: n > 1 ? ss / (n - 1) : 0,
+    biasedVar: ss / n,
+    pathMean,
+    pathVar
+  };
+}
+
+// Compute mean and unbiased variance of an array (using Welford!)
+function welfordSummary(arr) {
+  let mean = 0.0, ss = 0.0;
+  for (let k = 1; k <= arr.length; k++) {
+    const x = arr[k - 1];
+    const d = x - mean;
+    mean += d / k;
+    ss += d * (x - mean);
+  }
+  return {
+    mean: mean,
+    variance: arr.length > 1 ? ss / (arr.length - 1) : 0
+  };
+}
+
+// Exact Theoretical Variance of S^2 for sample size n
+function theoVarOfSampleVariance(n, sigma2, mu4) {
+  if (n <= 1) return 0;
+  return (1.0 / n) * (mu4 - ((n - 3.0) / (n - 1.0)) * Math.pow(sigma2, 2));
+}
+
+/* =========================================================================
+   3. NUMERICAL STABILITY BENCHMARK (EX 1)
+========================================================================= */
+function runStabilityBenchmark() {
+  const N = 1000;
+  const offset = 1e9;
+  const baseScores = [];
+  // Synthetic periodic reference dataset on {0,1,...,10} with exact known variance
+  for (let i = 0; i < N; i++) baseScores.push(i % 11);
+
+  // Exact reference on unshifted data
+  const exactRef = welfordSummary(baseScores);
+
+  // Shifted data x_i + 10^9
+  let wMean = 0.0, wSS = 0.0;
+  let sumX = 0.0, sumX2 = 0.0;
+  for (let k = 1; k <= N; k++) {
+    const x = baseScores[k - 1] + offset;
+    // Welford
+    const d = x - wMean;
+    wMean += d / k;
+    wSS += d * (x - wMean);
+    // Naive one-pass
+    sumX += x;
+    sumX2 += x * x;
+  }
+  const welfordVar = wSS / (N - 1);
+  const naiveMean = sumX / N;
+  const naiveVar = (sumX2 - N * naiveMean * naiveMean) / (N - 1);
+
+  const el = document.getElementById('stabilityBenchmark');
+  el.innerHTML =
+    `Exact Unshifted Variance s²: <strong style="color:#0f172a">${exactRef.variance.toFixed(6)}</strong><br>` +
+    `Welford Recurrence s²:       <strong style="color:#059669">${welfordVar.toFixed(6)}</strong> (Rel. Error: ${(Math.abs(welfordVar - exactRef.variance)/exactRef.variance * 100).toExponential(2)}%)<br>` +
+    `Naive (∑x² - nx̄²)/(n-1):     <strong style="color:#dc2626">${naiveVar.toFixed(6)}</strong> (Catastrophic Cancellation!)`;
+}
+
+/* =========================================================================
+   4. SINGLE-N SIMULATION & CHARTS (EX 2)
+========================================================================= */
+let chartInstances = {};
+
+function buildHistogram(data, bins = 32) {
+  let min = Math.min(...data), max = Math.max(...data);
+  if (min === max) { min -= 0.5; max += 0.5; }
+  const width = (max - min) / bins;
+  const counts = new Array(bins).fill(0);
+  data.forEach(v => {
+    const idx = Math.min(Math.floor((v - min) / width), bins - 1);
+    counts[idx]++;
+  });
+  return {
+    centers: Array.from({ length: bins }, (_, i) => min + (i + 0.5) * width),
+    labels: Array.from({ length: bins }, (_, i) => (min + (i + 0.5) * width).toFixed(2)),
+    density: counts.map(c => c / (data.length * width))
+  };
+}
+
+function normalPDF(x, mean, variance) {
+  const sd = Math.sqrt(variance);
+  return (1.0 / (sd * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / sd, 2));
+}
+
+function onDistChange() {
+  const isBinom = document.getElementById('distSelect').value === 'binomial';
+  document.getElementById('paramP').disabled = !isBinom;
+  runSingleSimulation();
+  runMultiNExperiment();
+}
+
+function runSingleSimulation() {
+  const dist = getDistributionConfig();
+  const n = parseInt(document.getElementById('paramN').value);
+  const m = parseInt(document.getElementById('paramM').value);
+
+  document.getElementById('simConfigBadge').textContent = `${dist.name} | n = ${n}, m = ${m}`;
+  document.getElementById('theoBadge').innerHTML =
+    `<strong>Active Score Distribution:</strong><br>${dist.name}<br>` +
+    `• Theoretical Mean $\\mu = ${dist.mu.toFixed(4)}$<br>` +
+    `• Theoretical Variance $\\sigma^2 = ${dist.sigma2.toFixed(4)}$<br>` +
+    `• 4th Central Moment $\\mu_4 = ${dist.mu4.toFixed(2)}$`;
+
+  const sampleMeans = [];
+  const sampleUnbiasedVars = [];
+  const sampleBiasedVars = [];
+  const pathsMean = [];
+  const pathsVar = [];
+
+  const maxPaths = Math.min(m, 35);
+  const stepInterval = Math.max(1, Math.floor(n / 200));
+
+  for (let j = 0; j < m; j++) {
+    const record = j < maxPaths;
+    const res = runWelfordTrajectory(n, dist.sample, record, stepInterval);
+    sampleMeans.push(res.mean);
+    sampleUnbiasedVars.push(res.unbiasedVar);
+    sampleBiasedVars.push(res.biasedVar);
+    if (record) {
+      pathsMean.push(res.pathMean);
+      pathsVar.push(res.pathVar);
+    }
+  }
+
+  // Compute summary across m hackers using Welford
+  const statsMean = welfordSummary(sampleMeans);
+  const statsUVar = welfordSummary(sampleUnbiasedVars);
+  const statsBVar = welfordSummary(sampleBiasedVars);
+
+  // Theoretical values
+  const theoMean = dist.mu;
+  const theoUVar = dist.sigma2;
+  const theoBVar = ((n - 1.0) / n) * dist.sigma2;
+  const theoVarOfMean = dist.sigma2 / n;
+  const theoVarOfVar = theoVarOfSampleVariance(n, dist.sigma2, dist.mu4);
+
+  // Populate Table
+  const fmt = v => v.toFixed(5);
+  document.getElementById('tb-theo-mean').textContent = fmt(theoMean);
+  document.getElementById('tb-emp-mean').textContent = fmt(statsMean.mean);
+  document.getElementById('tb-err-mean').textContent = fmt(Math.abs(statsMean.mean - theoMean));
+
+  document.getElementById('tb-theo-var').textContent = fmt(theoUVar);
+  document.getElementById('tb-emp-var').textContent = fmt(statsUVar.mean);
+  document.getElementById('tb-err-var').textContent = fmt(Math.abs(statsUVar.mean - theoUVar));
+
+  document.getElementById('tb-theo-bvar').textContent = fmt(theoBVar);
+  document.getElementById('tb-emp-bvar').textContent = fmt(statsBVar.mean);
+  document.getElementById('tb-err-bvar').textContent =
+    `${fmt(Math.abs(statsBVar.mean - theoBVar))} (Bias vs σ²: -${fmt(Math.abs(statsBVar.mean - theoUVar))})`;
+
+  document.getElementById('tb-theo-vmean').textContent = fmt(theoVarOfMean);
+  document.getElementById('tb-emp-vmean').textContent = fmt(statsMean.variance);
+  document.getElementById('tb-err-vmean').textContent = fmt(Math.abs(statsMean.variance - theoVarOfMean));
+
+  document.getElementById('tb-theo-vvar').textContent = fmt(theoVarOfVar);
+  document.getElementById('tb-emp-vvar').textContent = fmt(statsUVar.variance);
+  document.getElementById('tb-err-vvar').textContent = fmt(Math.abs(statsUVar.variance - theoVarOfVar));
+
+  renderDiagnosticCharts(dist, n, pathsMean, pathsVar, sampleMeans, sampleUnbiasedVars, statsMean.mean, statsUVar.mean);
+  if (window.MathJax) MathJax.typesetPromise();
+}
+
+function renderDiagnosticCharts(dist, n, pathsMean, pathsVar, sampleMeans, sampleVars, empMeanAvg, empVarAvg) {
+  ['trajMean', 'trajVar', 'distMean', 'distVar'].forEach(k => {
+    if (chartInstances[k]) chartInstances[k].destroy();
+  });
+
+  // 1. Running Welford Mean Trajectories
+  const dsMeanPaths = pathsMean.map(p => ({
+    data: p, borderColor: 'rgba(37, 99, 235, 0.25)', borderWidth: 1, pointRadius: 0, fill: false, tension: 0.1
+  }));
+  dsMeanPaths.push({
+    label: 'Theoretical μ', data: [{ x: 1, y: dist.mu }, { x: n, y: dist.mu }],
+    borderColor: '#dc2626', borderWidth: 2.5, borderDash: [6, 4], pointRadius: 0, fill: false
+  });
+
+  chartInstances.trajMean = new Chart(document.getElementById('chartTrajMean').getContext('2d'), {
+    type: 'line',
+    data: { datasets: dsMeanPaths },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: `Welford Running Sample Mean x̄_k across n = ${n} Systems (Red Dashed = μ)` }
+      },
+      scales: {
+        x: { type: 'linear', title: { display: true, text: 'System Step k' } },
+        y: { title: { display: true, text: 'Running Sample Mean x̄_k' } }
+      }
+    }
+  });
+
+  // 2. Running Welford Variance Trajectories
+  const dsVarPaths = pathsVar.map(p => ({
+    data: p, borderColor: 'rgba(5, 150, 105, 0.25)', borderWidth: 1, pointRadius: 0, fill: false, tension: 0.1
+  }));
+  dsVarPaths.push({
+    label: 'Theoretical σ²', data: [{ x: 2, y: dist.sigma2 }, { x: n, y: dist.sigma2 }],
+    borderColor: '#dc2626', borderWidth: 2.5, borderDash: [6, 4], pointRadius: 0, fill: false
+  });
+
+  chartInstances.trajVar = new Chart(document.getElementById('chartTrajVar').getContext('2d'), {
+    type: 'line',
+    data: { datasets: dsVarPaths },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: `Welford Running Sample Variance s²_k across n = ${n} Systems (Red Dashed = σ²)` }
+      },
+      scales: {
+        x: { type: 'linear', title: { display: true, text: 'System Step k' } },
+        y: { title: { display: true, text: 'Running Sample Variance s²_k' } }
+      }
+    }
+  });
+
+  // 3. Histogram of Sampling Means + CLT Normal Overlay
+  const histMean = buildHistogram(sampleMeans, 30);
+  const cltCurve = histMean.centers.map(x => normalPDF(x, dist.mu, dist.sigma2 / n));
+
+  chartInstances.distMean = new Chart(document.getElementById('chartDistMean').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: histMean.labels,
+      datasets: [
+        {
+          label: 'CLT Theoretical N(μ, σ²/n)',
+          data: cltCurve,
+          type: 'line',
+          borderColor: '#dc2626',
+          borderWidth: 2.2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.35
+        },
+        {
+          label: 'Sampling Means Density',
+          data: histMean.density,
+          backgroundColor: 'rgba(37, 99, 235, 0.6)',
+          borderColor: '#1d4ed8',
+          borderWidth: 1,
+          barPercentage: 1.0,
+          categoryPercentage: 1.0
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        title: { display: true, text: `Distribution of m Sampling Means x̄_j (Avg = ${empMeanAvg.toFixed(3)}, μ = ${dist.mu.toFixed(3)})` }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 7 }, title: { display: true, text: 'Sample Mean x̄_j' } },
+        y: { title: { display: true, text: 'Density' } }
+      }
+    }
+  });
+
+  // 4. Histogram of Sampling Variances
+  const histVar = buildHistogram(sampleVars, 30);
+  chartInstances.distVar = new Chart(document.getElementById('chartDistVar').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: histVar.labels,
+      datasets: [{
+        label: 'Sampling Variances S²_j Density',
+        data: histVar.density,
+        backgroundColor: 'rgba(5, 150, 105, 0.6)',
+        borderColor: '#047857',
+        borderWidth: 1,
+        barPercentage: 1.0,
+        categoryPercentage: 1.0
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        title: { display: true, text: `Distribution of m Sampling Variances S²_j (Avg = ${empVarAvg.toFixed(3)}, σ² = ${dist.sigma2.toFixed(3)})` }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 7 }, title: { display: true, text: 'Sample Variance S²_j' } },
+        y: { title: { display: true, text: 'Density' } }
+      }
+    }
+  });
+}
+
+/* =========================================================================
+   5. MULTI-N SENSITIVITY EXPERIMENT (NON-BLOCKING UI)
+========================================================================= */
+function runMultiNExperiment() {
+  const btn = document.getElementById('btnMultiN');
+  btn.disabled = true;
+  btn.textContent = '⏳ Computing Multi-n Study...';
+
+  setTimeout(() => {
+    const dist = getDistributionConfig();
+    const m = parseInt(document.getElementById('paramM').value);
+    const nList = [5, 10, 25, 50, 100, 250, 500, 1000];
+
+    const empVarMeanArr = [], theoVarMeanArr = [];
+    const empVarVarArr = [], theoVarVarArr = [];
+    const avgUnbiasedArr = [], avgBiasedArr = [], theoSigma2Arr = [];
+
+    const tbody = document.getElementById('multiNTableBody');
+    tbody.innerHTML = '';
+
+    nList.forEach(nVal => {
+      const means = [], uVars = [], bVars = [];
+      for (let j = 0; j < m; j++) {
+        const res = runWelfordTrajectory(nVal, dist.sample, false);
+        means.push(res.mean);
+        uVars.push(res.unbiasedVar);
+        bVars.push(res.biasedVar);
+      }
+      const sMean = welfordSummary(means);
+      const sUVar = welfordSummary(uVars);
+      const sBVar = welfordSummary(bVars);
+
+      const tVMean = dist.sigma2 / nVal;
+      const tVVar = theoVarOfSampleVariance(nVal, dist.sigma2, dist.mu4);
+
+      empVarMeanArr.push(sMean.variance);
+      theoVarMeanArr.push(tVMean);
+      empVarVarArr.push(sUVar.variance);
+      theoVarVarArr.push(tVVar);
+
+      avgUnbiasedArr.push(sUVar.mean);
+      avgBiasedArr.push(sBVar.mean);
+      theoSigma2Arr.push(dist.sigma2);
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>n = ${nVal}</td>
+        <td class="emp-val">${sMean.mean.toFixed(4)} <span class="err-val">(${dist.mu.toFixed(2)})</span></td>
+        <td class="emp-val">${sUVar.mean.toFixed(4)} <span class="err-val">(${dist.sigma2.toFixed(2)})</span></td>
+        <td class="warn-val">${sBVar.mean.toFixed(4)}</td>
+        <td class="emp-val">${sMean.variance.toFixed(4)}</td>
+        <td class="theo-val">${tVMean.toFixed(4)}</td>
+        <td class="emp-val">${sUVar.variance.toFixed(4)}</td>
+        <td class="theo-val">${tVVar.toFixed(4)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    if (chartInstances.multiNVar) chartInstances.multiNVar.destroy();
+    if (chartInstances.multiNBias) chartInstances.multiNBias.destroy();
+
+    // Chart 1: Variance Decay of Estimators
+    chartInstances.multiNVar = new Chart(document.getElementById('chartMultiNVar').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: nList.map(n => `n=${n}`),
+        datasets: [
+          { label: 'Empirical Var(x̄)', data: empVarMeanArr, borderColor: '#2563eb', backgroundColor: '#2563eb', borderWidth: 2, tension: 0.2 },
+          { label: 'Theoretical σ²/n', data: theoVarMeanArr, borderColor: '#93c5fd', borderDash: [5, 5], borderWidth: 2, tension: 0.2 },
+          { label: 'Empirical Var(S²)', data: empVarVarArr, borderColor: '#059669', backgroundColor: '#059669', borderWidth: 2, tension: 0.2 },
+          { label: 'Theoretical Var(S²)', data: theoVarVarArr, borderColor: '#6ee7b7', borderDash: [5, 5], borderWidth: 2, tension: 0.2 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          title: { display: true, text: 'Decay of Estimator Variability Var(x̄) & Var(S²) as n Increases (Log-Scale)' }
+        },
+        scales: {
+          y: { type: 'logarithmic', title: { display: true, text: 'Variance of Estimator (Log Scale)' } }
+        }
+      }
+    });
+
+    // Chart 2: Unbiased S^2 vs Biased sigma_hat^2 across n
+    chartInstances.multiNBias = new Chart(document.getElementById('chartMultiNBias').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: nList.map(n => `n=${n}`),
+        datasets: [
+          { label: 'True Variance σ²', data: theoSigma2Arr, borderColor: '#dc2626', borderDash: [6, 4], borderWidth: 2, pointRadius: 0 },
+          { label: 'Unbiased Sample Var E[S²] (div by n-1)', data: avgUnbiasedArr, borderColor: '#059669', backgroundColor: '#059669', borderWidth: 2.2 },
+          { label: 'Biased Sample Var E[σ̂²] (div by n)', data: avgBiasedArr, borderColor: '#d97706', backgroundColor: '#d97706', borderWidth: 2.2 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          title: { display: true, text: 'Unbiasedness Check: S² (Bessel n-1) vs. Biased σ̂² (div by n) across Sample Sizes n' }
+        },
+        scales: {
+          y: { title: { display: true, text: 'Average Estimated Variance across m Hackers' } }
+        }
+      }
+    });
+
+    btn.disabled = false;
+    btn.textContent = '🔬 Run Multi-n Sensitivity Study';
+  }, 15);
+}
+
+// Initialize on load (using onDistChange to ensure select states are synced)
+window.onload = () => {
+  runStabilityBenchmark();
+  onDistChange();
+};
+</script>
+</body>
+</html>
