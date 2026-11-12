@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Homework 6 — Integration & Normal CDF</title>
+<script>
+MathJax = { tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] } };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--bg:#f4f6f9;--sb:#162447;--sbt:#e2e8f0;--card:#fff;--td:#1e293b;--tm:#64748b;--ac:#2563eb;--ach:#1d4ed8;--bd:#e2e8f0;--thc:#dc2626;--emp:#059669;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--td);display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:340px;background:var(--sb);color:var(--sbt);padding:24px 20px;display:flex;flex-direction:column;gap:16px;box-shadow:3px 0 12px rgba(0,0,0,.12);z-index:10;overflow-y:auto;flex-shrink:0;}
+.sidebar h1{margin:0;font-size:1.3rem;color:#fff;}
+.sidebar .subtitle{font-size:.82rem;color:#94a3b8;margin:4px 0 0;}
+.divider{height:1px;background:rgba(255,255,255,.12);margin:4px 0;}
+.control-group{margin-bottom:12px;}
+.control-group label{display:block;font-size:.82rem;font-weight:600;margin-bottom:5px;color:#cbd5e1;}
+.control-group select{width:100%;padding:8px 10px;border-radius:5px;border:1px solid #334155;background:#1e293b;color:#fff;font-size:.9rem;outline:none;}
+button.run-btn{width:100%;padding:11px;background:var(--ac);color:#fff;border:none;border-radius:6px;font-weight:600;font-size:.95rem;cursor:pointer;transition:background .2s;margin-top:6px;}
+button.run-btn:hover:not(:disabled){background:var(--ach);}
+button:disabled{opacity:.7;cursor:wait;}
+.main-content{flex:1;padding:28px 34px;overflow-y:auto;display:flex;flex-direction:column;gap:26px;}
+.card{background:var(--card);border-radius:8px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid var(--bd);}
+.card-header{font-size:1.15rem;font-weight:700;margin-bottom:16px;border-bottom:2px solid var(--bg);padding-bottom:10px;display:flex;justify-content:space-between;}
+.badge{font-size:.78rem;font-weight:600;padding:4px 10px;border-radius:999px;background:#e0e7ff;color:#1e40af;}
+.deriv-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.deriv-box{background:#f8fafc;border:1px solid var(--bd);border-left:4px solid var(--ac);padding:16px 18px;border-radius:6px;font-size:.92rem;line-height:1.65;}
+.deriv-box h4{margin:0 0 8px;color:#1e3a8a;font-size:1rem;}
+table{width:100%;border-collapse:collapse;font-size:.88rem;margin-top:8px;}
+th,td{padding:11px 14px;text-align:right;border-bottom:1px solid var(--bd);}
+th{background:#f1f5f9;font-weight:600;color:#334155;text-align:center;}
+td:first-child{text-align:left;font-weight:600;color:#0f172a;}
+.theo-val{color:var(--thc);font-family:monospace;font-size:.98rem;font-weight:600;}
+.emp-val{color:var(--emp);font-family:monospace;font-size:.98rem;font-weight:700;}
+.err-val{color:var(--tm);font-family:monospace;font-size:.88rem;}
+.chart-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.chart-box{height:320px;position:relative;border:1px solid #f1f5f9;padding:10px;border-radius:6px;background:#fff;}
+.essay-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.essay-block{background:#fcfcfd;border:1px solid var(--bd);border-radius:8px;padding:18px 20px;line-height:1.7;font-size:.93rem;}
+.essay-block h3{margin:0 0 10px;font-size:1.02rem;color:#1e3a8a;border-bottom:1px solid var(--bd);padding-bottom:6px;}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div>
+    <h1>Statistical Analysis Lab</h1>
+    <div class="subtitle">Ex.1: Riemann vs Lebesgue<br>Ex.2: Normal CDF & Liouville</div>
+  </div>
+  <div class="divider"></div>
+  <div>
+    <h3 style="color:#38bdf8;font-size:.95rem;margin-bottom:10px;">Ex 1: Integration</h3>
+    <div class="control-group">
+      <label>Function $f(x)$:</label>
+      <select id="funcSelect">
+        <option value="sin">sin(x) on [0,π]</option>
+        <option value="x2">x² on [0,1]</option>
+        <option value="step_01">1 if x&lt;0.5 else 0 on [0,1]</option>
+        <option value="step">1 if x&lt;0.5 else 3 on [0,1]</option>
+        <option value="abs">|x-0.5| on [0,1]</option>
+        <option value="inv_sqrt">1/√x on (0,1]</option>
+        <option value="sinc">sin(x)/x on [0,π]</option>
+        <option value="dirichlet" style="color:#f87171">Dirichlet on [0,1]</option>
+        <option value="thomae" style="color:#f87171">Thomae on [0,1]</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Partitions N:</label>
+      <select id="partSelect">
+        <option value="10">N=10</option>
+        <option value="50" selected>N=50</option>
+        <option value="500">N=500</option>
+        <option value="5000">N=5000</option>
+      </select>
+    </div>
+    <button class="run-btn" id="ex1Btn" onclick="runEx1Async()">▶ Compute Integrals</button>
+  </div>
+  <div class="divider"></div>
+  <div>
+    <h3 style="color:#38bdf8;font-size:.95rem;margin-bottom:10px;">Ex 2: Normal CDF</h3>
+    <div class="control-group">
+      <label>Z-Score:</label>
+      <select id="zSelect">
+        <option value="-3.0">z=-3.0</option>
+        <option value="-1.96">z=-1.96</option>
+        <option value="0.0">z=0.0</option>
+        <option value="1.96" selected>z=1.96</option>
+        <option value="3.0">z=3.0</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Taylor terms k:</label>
+      <select id="taylorSelect">
+        <option value="5">k=5</option>
+        <option value="15" selected>k=15</option>
+        <option value="40">k=40</option>
+      </select>
+    </div>
+    <button class="run-btn" style="background:#0d9488;" id="ex2Btn" onclick="runEx2()">▶ Compute CDF</button>
+  </div>
+</aside>
+
+<main class="main-content">
+<section class="card">
+  <div class="card-header"><span>Ex 1 — Riemann vs Lebesgue Integration</span><span class="badge" id="ex1Badge">Awaiting...</span></div>
+  <div class="deriv-grid">
+    <div class="deriv-box">
+      <h4>Riemann (domain partition)</h4>
+      <p>Domain partitioned into intervals Δx<sub>i</sub>:</p>
+      $$\int_a^b f(x)\,dx \approx \sum_{i=1}^N f(x_i^*)\Delta x_i$$
+    </div>
+    <div class="deriv-box" style="border-left-color:#059669;">
+      <h4>Lebesgue (range partition)</h4>
+      <p>Range partitioned into intervals [y<sub>j</sub>, y<sub>j+1</sub>):</p>
+      $$\int f\,d\mu \approx \sum_{j=1}^M y_j \cdot \mu(f^{-1}([y_j,y_{j+1})))$$
+    </div>
+  </div>
+  <div class="chart-grid-2" style="margin-top:20px;">
+    <div class="chart-box"><canvas id="funcChart"></canvas></div>
+    <div class="chart-box"><canvas id="convChart"></canvas></div>
+  </div>
+  <p style="font-size:.85rem;color:#64748b;margin-top:14px;line-height:1.5;">
+    <strong>Convergence note:</strong> Smooth functions — Lebesgue (range midpoint) is O(1/N); Riemann (domain midpoint) is O(1/N²). Both converge to the same value (equivalence theorem). The chart shows quadrature-order, not theoretical validity.
+  </p>
+  <table>
+    <thead><tr><th>Method</th><th>Value</th><th>Abs Error</th><th>Time (ms)</th></tr></thead>
+    <tbody id="ex1TableBody"><tr><td colspan="4" style="text-align:center;">Run to view.</td></tr></tbody>
+  </table>
+  <div id="lebesgueNote" style="margin-top:15px;padding:12px;background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #d97706;border-radius:6px;font-size:.88rem;display:none;line-height:1.6;">
+    <strong>Lebesgue implementation:</strong><br>
+    • Elementary preimages (sin, x², step, |x−0.5|, 1/√x): exact analytical measure.<br>
+    • <code>sinc</code>: no elementary inverse — numerical fallback (fine Riemann equivalent).<br>
+    • Pathological (Dirichlet, Thomae): rationals have measure 0 but are dense, so numerical binning from random samples gives 0. Shown value is <strong>theoretical exact</strong> from measure theory. For Thomae, Riemann grid points hit p/q with small q, producing visible non-zero contributions — this illustrates Riemann's failure on pathological functions.
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header"><span>Ex 2 — Normal CDF</span><span class="badge" id="ex2Badge">Awaiting...</span></div>
+  <div class="deriv-grid">
+    <div class="deriv-box" style="border-left-color:#8b5cf6;">
+      <h4>Normal CDF & erf</h4>
+      $$\Phi(z) = \tfrac{1}{2}\left[1 + \mathrm{erf}\!\left(\tfrac{z}{\sqrt{2}}\right)\right]$$
+    </div>
+    <div class="deriv-box" style="border-left-color:#8b5cf6;">
+      <h4>Maclaurin series for erf</h4>
+      $$\mathrm{erf}(x) = \tfrac{2}{\sqrt{\pi}} \sum_{n=0}^{\infty} \tfrac{(-1)^n x^{2n+1}}{n!\,(2n+1)}$$
+    </div>
+  </div>
+  <table style="margin-top:20px;">
+    <thead><tr><th>Method</th><th>Φ(z) Estimate</th><th>Abs Err vs NIST</th><th>Notes</th></tr></thead>
+    <tbody id="ex2TableBody"><tr><td colspan="4" style="text-align:center;">Run to view.</td></tr></tbody>
+  </table>
+</section>
+
+<section class="card">
+  <div class="card-header"><span>Theoretical Report</span><span class="badge">Master's</span></div>
+  <div class="essay-grid">
+    <div class="essay-block">
+      <h3>1. Liouville & Φ(z)</h3>
+      <p>By <strong>Liouville's theorem</strong>, if $e^{-x^2/2}$ had an elementary antiderivative it would be $R(x)e^{-x^2/2}$ with $R$ rational; differentiation yields a contradiction. Hence $\Phi(z)$ has <strong>no elementary closed form</strong>. We adopt the special function $\mathrm{erf}$ and evaluate it numerically.</p>
+    </div>
+    <div class="essay-block">
+      <h3>2. IDS Anomaly Guards</h3>
+      <p>Intrusion Detection Systems compute Z-scores and p-values from $\Phi(Z)$ millions of times per second. Heavy quadrature is too slow; rational approximations (Abramowitz & Stegun, derived from Taylor) enable wire-speed classification.</p>
+    </div>
+    <div class="essay-block">
+      <h3>3. Pathological Functions</h3>
+      <p>Riemann sums on Dirichlet/Thomae diverge because the upper and lower Darboux sums do not squeeze. Lebesgue integration bypasses this by measuring preimages globally: since rationals have measure 0, the integral is exactly 0 — Riemann's definition is simply <em>not applicable</em>.</p>
+    </div>
+    <div class="essay-block">
+      <h3>4. Traffic Area (DDoS)</h3>
+      <p>Riemann approach = uniform bitrate polling (SNMP). Lebesgue approach = state-based: total time spent at each congestion level. Both converge; Lebesgue binning is more robust to bursty traffic.</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+"use strict";
+
+/* ---------- Helpers ---------- */
+function isRationalApprox(x, maxQ, tol) {
+  if (!isFinite(x)) return false;
+  for (let q = 1; q <= maxQ; q++) {
+    const p = Math.round(x * q);
+    if (Math.abs(x - p / q) < tol) return true;
+  }
+  return false;
+}
+
+/* ---------- Ex1: Functions catalog ---------- */
+const FuncRepo = {
+  sin: {
+    f: x => Math.sin(x), a: 0, b: Math.PI, exact: 2.0, name: "sin(x) on [0,π]", range: [0, 1],
+    measure: (y1, y2) => 2 * (Math.asin(Math.min(1, y2)) - Math.asin(Math.max(-1, y1)))
+  },
+  x2: {
+    f: x => x * x, a: 0, b: 1, exact: 1/3, name: "x² on [0,1]", range: [0, 1],
+    measure: (y1, y2) => Math.sqrt(Math.max(0, y2)) - Math.sqrt(Math.max(0, y1))
+  },
+  step_01: {
+    f: x => x < 0.5 ? 1 : 0, a: 0, b: 1, exact: 0.5, name: "1 if x<0.5 else 0", range: [0, 1],
+    measure: (y1, y2) => {
+      let m = 0; const eps = 1e-10;
+      if (y1 <= 0 + eps && y2 > 0 - eps) m += 0.5;
+      if (y1 <= 1 + eps && y2 > 1 - eps) m += 0.5;
+      return m;
+    }
+  },
+  step: {
+    f: x => x < 0.5 ? 1 : 3, a: 0, b: 1, exact: 2.0, name: "1 if x<0.5 else 3", range: [0, 3],
+    measure: (y1, y2) => {
+      let m = 0; const eps = 1e-10;
+      if (y1 <= 1 + eps && y2 > 1 - eps) m += 0.5;
+      if (y1 <= 3 + eps && y2 > 3 - eps) m += 0.5;
+      return m;
+    }
+  },
+  abs: {
+    f: x => Math.abs(x - 0.5), a: 0, b: 1, exact: 0.25, name: "|x−0.5| on [0,1]", range: [0, 0.5],
+    measure: (y1, y2) => 2 * (y2 - y1)
+  },
+  inv_sqrt: {
+    f: x => x === 0 ? Infinity : 1 / Math.sqrt(x), a: 0, b: 1, exact: 2.0, name: "1/√x on (0,1]",
+    range: [1, 50],
+    note: "Range truncated at y=50. Truncation error for Lebesgue: ∫_{x<1/2500} x^{-1/2}dx = 0.04.",
+    measure: (y1, y2) => (1 / (y1 * y1)) - (1 / (y2 * y2))
+  },
+  sinc: {
+    f: x => x === 0 ? 1 : Math.sin(x) / x, a: 0, b: Math.PI, exact: 1.851937051982, name: "sin(x)/x on [0,π]", range: [0, 1],
+    measure: (y1, y2) => {
+      let m = 0; const h = Math.PI / 10000;
+      for (let i = 0; i < 10000; i++) {
+        const x = (i + 0.5) * h;
+        const y = x === 0 ? 1 : Math.sin(x) / x;
+        if (y >= y1 && y < y2) m += h;
+      }
+      return m;
+    }
+  },
+  dirichlet: {
+    f: x => isRationalApprox(x, 1000, 1e-12) ? 1 : 0,
+    a: 0, b: 1, exact: 0.0, name: "Dirichlet (1 on Q, 0 else)", range: [0, 1],
+    measure: (y1, y2) => (y1 <= 0 + 1e-10 && y2 > 0 - 1e-10) ? 1.0 : 0.0
+  },
+  thomae: {
+    f: x => {
+      if (x <= 0 || x >= 1) return 0;
+      for (let q = 1; q <= 12; q++) {
+        const p = Math.round(x * q);
+        if (Math.abs(x - p / q) < 1e-6) return 1 / q;
+      }
+      return 0;
+    },
+    a: 0, b: 1, exact: 0.0, name: "Thomae (q≤12, tol 1e-6)", range: [0, 1],
+    measure: (y1, y2) => (y1 <= 0 + 1e-10 && y2 > 0 - 1e-10) ? 1.0 : 0.0
+  }
+};
+
+let ex1Chart = null, convChart = null;
+
+function runEx1Async() {
+  const btn = document.getElementById('ex1Btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Computing...';
+  requestAnimationFrame(() => setTimeout(() => {
+    try { runEx1(); }
+    catch(e) { console.error(e); alert('Ex1 error: ' + e.message); }
+    finally { btn.disabled = false; btn.textContent = '▶ Compute Integrals'; }
+  }, 0));
+}
+
+function runEx1() {
+  const key = document.getElementById('funcSelect').value;
+  const N = parseInt(document.getElementById('partSelect').value, 10);
+  const cfg = FuncRepo[key];
+  const f = cfg.f;
+
+  document.getElementById('ex1Badge').textContent = cfg.name + ' — N=' + N;
+  document.getElementById('lebesgueNote').style.display = 'block';
+
+  // Riemann midpoint
+  let t0 = performance.now();
+  let riemannSum = 0;
+  const dx = (cfg.b - cfg.a) / N;
+  const rects = [];
+  for (let i = 0; i < N; i++) {
+    const xm = cfg.a + i * dx + dx / 2;
+    const y = f(xm);
+    const yUse = isFinite(y) ? y : 0;
+    riemannSum += yUse * dx;
+    if (N <= 100) rects.push({ x: xm, y: yUse });
+  }
+  const tR = performance.now() - t0;
+
+  // Lebesgue (range midpoint)
+  t0 = performance.now();
+  let lebesgueSum = 0;
+  const yMin = cfg.range[0], yMax = cfg.range[1];
+  const dy = (yMax - yMin) / N;
+  for (let j = 0; j < N; j++) {
+    const y1 = yMin + j * dy;
+    const y2 = y1 + dy + (j === N - 1 ? 1e-9 : 0);
+    const ym = y1 + dy / 2;
+    lebesgueSum += ym * cfg.measure(y1, y2);
+  }
+  const tL = performance.now() - t0;
+
+  renderFuncChart(cfg, N, rects);
+  renderConvChart(cfg);
+
+  let html =
+    '<tr><td>Exact</td><td class="theo-val">' + cfg.exact.toFixed(6) + '</td><td class="err-val">—</td><td>—</td></tr>' +
+    '<tr><td>Riemann (midpoint)</td><td class="emp-val">' + riemannSum.toFixed(6) + '</td><td class="err-val">' + Math.abs(cfg.exact - riemannSum).toExponential(3) + '</td><td>' + tR.toFixed(2) + '</td></tr>' +
+    '<tr><td>Lebesgue (analytic)</td><td class="emp-val" style="color:#059669">' + lebesgueSum.toFixed(6) + '</td><td class="err-val">' + Math.abs(cfg.exact - lebesgueSum).toExponential(3) + '</td><td>' + tL.toFixed(2) + '</td></tr>';
+  if (cfg.note) {
+    html += '<tr><td colspan="4" style="background:#fffbeb;color:#d97706;font-size:.85rem;text-align:center;">⚠️ ' + cfg.note + '</td></tr>';
+  }
+  document.getElementById('ex1TableBody').innerHTML = html;
+}
+
+function renderFuncChart(cfg, N, rects) {
+  if (ex1Chart) ex1Chart.destroy();
+  let labels = [], data = [];
+  if (N <= 100 && rects.length) {
+    labels = rects.map(r => r.x.toFixed(3));
+    data = rects.map(r => r.y);
+  } else {
+    const cdx = (cfg.b - cfg.a) / 300;
+    for (let i = 0; i <= 300; i++) {
+      const x = cfg.a + i * cdx;
+      const y = cfg.f(x);
+      labels.push(x.toFixed(3));
+      data.push(isFinite(y) ? y : 0);
+    }
+  }
+  const datasets = [{
+    label: 'f(x)', data: data, type: 'line',
+    borderColor: '#1e293b', borderWidth: 2, pointRadius: 0, tension: 0.1
+  }];
+  if (N <= 100 && rects.length) {
+    datasets.push({
+      label: 'Riemann rects', data: rects.map(r => r.y), type: 'bar',
+      backgroundColor: 'rgba(37,99,235,.4)', borderColor: '#2563eb', borderWidth: 1,
+      barPercentage: 1.0, categoryPercentage: 1.0
+    });
+  }
+  ex1Chart = new Chart(document.getElementById('funcChart').getContext('2d'), {
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: 'Function: ' + cfg.name } },
+      scales: { x: { ticks: { maxTicksLimit: 8 } } }
+    }
+  });
+}
+
+function renderConvChart(cfg) {
+  const nv = [10, 20, 50, 100, 200, 500, 1000];
+  const errR = [], errL = [];
+  for (let k = 0; k < nv.length; k++) {
+    const n = nv[k];
+    // Riemann
+    const dx = (cfg.b - cfg.a) / n;
+    let rs = 0;
+    for (let i = 0; i < n; i++) {
+      const y = cfg.f(cfg.a + i * dx + dx / 2);
+      if (isFinite(y)) rs += y * dx;
+    }
+    errR.push(Math.max(Math.abs(cfg.exact - rs), 1e-16));
+    // Lebesgue
+    const dy = (cfg.range[1] - cfg.range[0]) / n;
+    let ls = 0;
+    for (let j = 0; j < n; j++) {
+      const y1 = cfg.range[0] + j * dy;
+      const y2 = y1 + dy + (j === n - 1 ? 1e-9 : 0);
+      ls += (y1 + dy / 2) * cfg.measure(y1, y2);
+    }
+    errL.push(Math.max(Math.abs(cfg.exact - ls), 1e-16));
+  }
+  if (convChart) convChart.destroy();
+  convChart = new Chart(document.getElementById('convChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: nv,
+      datasets: [
+        { label: 'Riemann error', data: errR, borderColor: '#2563eb', backgroundColor: '#2563eb' },
+        { label: 'Lebesgue error', data: errL, borderColor: '#059669', backgroundColor: '#059669' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: 'Error vs N (log-log)' } },
+      scales: {
+        x: { type: 'logarithmic', title: { display: true, text: 'N' } },
+        y: { type: 'logarithmic', title: { display: true, text: 'Abs error' } }
+      }
+    }
+  });
+}
+
+/* ---------- Ex2: Normal CDF ---------- */
+const Z_EXACT = {
+  "-3.0": 0.0013498980316300933,
+  "-1.96": 0.024997895148220428,
+  "0.0": 0.5,
+  "1.96": 0.9750021048517795,
+  "3.0": 0.9986501019683699
+};
+
+function erf_taylor(x, k) {
+  let sum = 0, term = x;
+  const x2 = x * x;
+  for (let n = 0; n < k; n++) {
+    if (n > 0) term *= -x2 / n;
+    sum += term / (2 * n + 1);
+  }
+  return (2 / Math.sqrt(Math.PI)) * sum;
+}
+
+function simpsonCDF(z, n) {
+  const a = -8.0;
+  if (z <= a) return 0.0;
+  const h = (z - a) / n;
+  const pdf = x => Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+  let sum = pdf(a) + pdf(z);
+  for (let i = 1; i < n; i += 2) sum += 4 * pdf(a + i * h);
+  for (let i = 2; i < n - 1; i += 2) sum += 2 * pdf(a + i * h);
+  return (h / 3) * sum;
+}
+
+function normalCDF_AS(x) {
+  let sign = 1;
+  if (x < 0) { sign = -1; x = -x; }
+  const t = 1 / (1 + 0.2316419 * x);
+  const pdf = Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+  const poly = t * (0.31938153 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  const cdf = 1.0 - pdf * poly;
+  return sign === 1 ? cdf : 1.0 - cdf;
+}
+
+function runEx2() {
+  const z = parseFloat(document.getElementById('zSelect').value);
+  const k = parseInt(document.getElementById('taylorSelect').value, 10);
+  const zkey = document.getElementById('zSelect').value;
+  document.getElementById('ex2Badge').textContent = 'Φ(' + z + ')';
+
+  const ref = Z_EXACT[zkey];
+  const asv = normalCDF_AS(z);
+  const simp = simpsonCDF(z, 5000);
+  const tay = 0.5 * (1 + erf_taylor(z / Math.sqrt(2), k));
+
+  const html =
+    '<tr><td>NIST DLMF (reference)</td><td class="theo-val">' + ref.toFixed(12) + '</td><td class="err-val">—</td><td style="font-size:.8rem;color:#64748b;">Hardcoded baseline</td></tr>' +
+    '<tr><td>Abramowitz & Stegun (O(1) rational)</td><td class="emp-val">' + asv.toFixed(12) + '</td><td class="err-val">' + Math.abs(ref - asv).toExponential(2) + '</td><td style="font-size:.8rem;color:#64748b;">Max error ~1.5e-7</td></tr>' +
+    '<tr><td>Simpson quadrature (N=5000)</td><td class="emp-val">' + simp.toFixed(12) + '</td><td class="err-val">' + Math.abs(ref - simp).toExponential(2) + '</td><td style="font-size:.8rem;color:#64748b;">~1e-11, truncated at −8</td></tr>' +
+    '<tr><td>erf Taylor (k=' + k + ')</td><td class="emp-val" style="color:#8b5cf6;">' + tay.toFixed(12) + '</td><td class="err-val">' + Math.abs(ref - tay).toExponential(2) + '</td><td style="font-size:.8rem;color:#64748b;">' + (k > 170 ? 'Warning: overflow' : 'Converges; cancellation at large |z|') + '</td></tr>';
+  document.getElementById('ex2TableBody').innerHTML = html;
+}
+
+/* ---------- Init ---------- */
+window.addEventListener('load', function() {
+  runEx1Async();
+  runEx2();
+});
+</script>
+</body>
+</html>
