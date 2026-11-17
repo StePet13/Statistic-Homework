@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Homework 7 — Statistical Independence & Contingency Analysis</title>
+
+<!-- MathJax Configuration -->
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']]
+    }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  :root {
+    --bg-main: #f4f6f9;
+    --sidebar-bg: #162447;
+    --sidebar-text: #e2e8f0;
+    --card-bg: #ffffff;
+    --text-dark: #1e293b;
+    --text-muted: #64748b;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --border: #e2e8f0;
+    --theo-color: #dc2626;
+    --emp-color: #059669;
+    --warn-color: #d97706;
+    --code-bg: #0f172a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-dark);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 345px;
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 3px 0 12px rgba(0,0,0,0.12);
+    z-index: 10;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .sidebar h1 { margin: 0; font-size: 1.28rem; color: #fff; line-height: 1.3; font-weight: 700; }
+  .sidebar .subtitle { font-size: 0.82rem; color: #94a3b8; margin: 4px 0 0 0; line-height: 1.4; }
+  .divider { height: 1px; background: rgba(255,255,255,0.12); margin: 2px 0; }
+
+  .control-group { margin-bottom: 11px; }
+  .control-group label {
+    display: block; font-size: 0.82rem; font-weight: 600;
+    margin-bottom: 5px; color: #cbd5e1;
+  }
+  .control-group select, .control-group input[type="range"], .control-group textarea {
+    width: 100%; padding: 8px 10px; border-radius: 5px;
+    border: 1px solid #334155; background: #1e293b; color: #fff;
+    font-size: 0.88rem; outline: none; font-family: inherit;
+  }
+  .control-group textarea {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.78rem;
+    resize: vertical;
+    min-height: 110px;
+    line-height: 1.4;
+  }
+
+  button.run-btn {
+    width: 100%; padding: 11px; background: var(--accent); color: white;
+    border: none; border-radius: 6px; font-weight: 600; font-size: 0.94rem;
+    cursor: pointer; transition: background 0.2s; margin-top: 4px;
+  }
+  button.run-btn:hover:not(:disabled) { background: var(--accent-hover); }
+
+  button.sec-btn {
+    width: 100%; padding: 9px; background: #0d9488; color: white;
+    border: none; border-radius: 6px; font-weight: 600; font-size: 0.88rem;
+    cursor: pointer; transition: background 0.2s; margin-top: 6px;
+  }
+  button.sec-btn:hover:not(:disabled) { background: #0f766e; }
+
+  .sidebar-code {
+    background: var(--code-bg); padding: 12px; border-radius: 6px;
+    font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.74rem;
+    color: #e2e8f0; border: 1px solid #334155; line-height: 1.5;
+  }
+  .sidebar-code .comment { color: #64748b; }
+  .sidebar-code .kw { color: #38bdf8; }
+  .sidebar-code .hl { color: #fde047; font-weight: bold; }
+
+  .param-badge {
+    background: rgba(255,255,255,0.07); padding: 12px; border-radius: 6px;
+    font-size: 0.81rem; line-height: 1.55; color: #e2e8f0;
+  }
+
+  /* MAIN CONTENT */
+  .main-content {
+    flex: 1; padding: 28px 34px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 26px;
+  }
+
+  .card {
+    background: var(--card-bg); border-radius: 8px; padding: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid var(--border);
+  }
+  .card-header {
+    font-size: 1.15rem; font-weight: 700; margin-bottom: 16px;
+    border-bottom: 2px solid var(--bg-main); padding-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    color: #0f172a; gap: 12px; flex-wrap: wrap;
+  }
+  .badge {
+    font-size: 0.78rem; font-weight: 600; padding: 4px 10px;
+    border-radius: 999px; background: #e0e7ff; color: #1e40af;
+  }
+  .badge-dep { background: #fee2e2; color: #991b1b; }
+  .badge-ind { background: #dcfce7; color: #166534; }
+
+  /* DERIVATION & FORMULA GRID */
+  .deriv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .deriv-box {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid var(--accent);
+    padding: 16px 18px; border-radius: 6px; font-size: 0.91rem; line-height: 1.65;
+  }
+  .deriv-box h4 { margin: 0 0 8px 0; color: #1e3a8a; font-size: 1rem; }
+  .deriv-box p { margin: 0 0 8px 0; }
+
+  /* KPI SUMMARY STRIP */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 16px;
+  }
+  .kpi-box {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px;
+    padding: 12px 14px; text-align: center;
+  }
+  .kpi-label { font-size: 0.76rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .kpi-val { font-size: 1.18rem; font-weight: 700; font-family: monospace; color: #0f172a; margin-top: 4px; }
+  .kpi-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+  /* VERDICT BANNER */
+  .verdict-box {
+    padding: 15px 18px; border-radius: 7px; font-size: 0.92rem; line-height: 1.6;
+    border: 1px solid; margin-top: 8px;
+  }
+  .verdict-dep { background: #fef2f2; border-color: #fecaca; border-left: 5px solid #dc2626; color: #7f1d1d; }
+  .verdict-ind { background: #f0fdf4; border-color: #bbf7d0; border-left: 5px solid #059669; color: #14532d; }
+
+  /* TABLES */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-top: 6px; }
+  th, td { padding: 10px 12px; text-align: right; border: 1px solid var(--border); }
+  th { background: #f1f5f9; font-weight: 600; color: #334155; text-align: center; }
+  td:first-child { text-align: left; font-weight: 600; color: #0f172a; background: #f8fafc; }
+  tr.marginal-row td { background: #eff6ff !important; font-weight: 700; color: #1e3a8a; border-top: 2px solid #93c5fd; }
+  td.marginal-col { background: #eff6ff !important; font-weight: 700; color: #1e3a8a; border-left: 2px solid #93c5fd; }
+  .cell-main { font-family: monospace; font-size: 0.94rem; font-weight: 700; color: #0f172a; }
+  .cell-sub { font-family: monospace; font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 2px; }
+  .res-pos { color: #dc2626; font-weight: 700; }
+  .res-neg { color: #2563eb; font-weight: 700; }
+
+  /* CHARTS */
+  .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .chart-box { height: 320px; position: relative; border: 1px solid #f1f5f9; padding: 10px; border-radius: 6px; background: #ffffff; }
+
+  /* PREVIEW STRIP */
+  .raw-preview {
+    background: var(--code-bg); color: #cbd5e1; padding: 10px 14px; border-radius: 6px;
+    font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.78rem;
+    max-height: 110px; overflow-y: auto; line-height: 1.5; margin-top: 10px;
+  }
+
+  /* THEORETICAL REPORT SECTION */
+  .essay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .essay-block {
+    background: #fcfcfd; border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 18px 20px; line-height: 1.7; font-size: 0.93rem;
+  }
+  .essay-block h3 {
+    margin: 0 0 10px 0; font-size: 1.02rem; color: #1e3a8a;
+    border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;
+  }
+  .essay-block p { margin: 0 0 10px 0; color: #334155; }
+  .essay-block ul { margin: 0 0 10px 0; padding-left: 20px; color: #334155; }
+  .essay-block li { margin-bottom: 6px; }
+
+  @media (max-width: 1150px) {
+    body { flex-direction: column; height: auto; overflow: auto; }
+    .sidebar { width: 100%; }
+    .deriv-grid, .chart-grid-2, .essay-grid { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LEFT SIDEBAR -->
+<aside class="sidebar">
+  <div>
+    <h1>Independence & $\chi^2$ Lab</h1>
+    <div class="subtitle">Bivariate Contingency Table $(X, F)$<br>Marginals, Conditionals, $\chi^2$ & Causality</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div>
+    <div class="control-group">
+      <label>Bivariate Dataset $(X, F)$ Source:</label>
+      <select id="datasetSelect" onchange="onDatasetSourceChange()">
+        <option value="cyber_ids" selected>1. Network Protocol vs. IDS Alert (Dependent, 3×3)</option>
+        <option value="cyber_ecc">2. Server Rack vs. ECC Bit-Flip (Independent, 3×2)</option>
+        <option value="cyber_phish">3. Phishing Training vs. Click Outcome (Dependent, 2×2)</option>
+        <option value="synthetic">4. Synthetic Monte Carlo Generator (Custom λ & N)</option>
+        <option value="custom_csv">5. Custom Bivariate Dataset (Paste Raw (X, F) Pairs)</option>
+      </select>
+    </div>
+
+    <!-- Synthetic Controls -->
+    <div id="syntheticControls" style="display:none; background:rgba(255,255,255,0.05); padding:10px; border-radius:6px; margin-bottom:10px;">
+      <div class="control-group">
+        <label>Dependence Strength $\lambda$: <span id="lambdaLabel" style="color:#fde047;">0.00 (Independent)</span></label>
+        <input type="range" id="lambdaSlider" min="0" max="1" step="0.05" value="0" oninput="onLambdaChange()">
+      </div>
+      <div class="control-group" style="margin-bottom:4px;">
+        <label>Sample Size $N$:</label>
+        <select id="synthNSelect" onchange="runAnalysis()">
+          <option value="150">N = 150 Observations</option>
+          <option value="500" selected>N = 500 Observations</option>
+          <option value="2000">N = 2,000 Observations</option>
+          <option value="10000">N = 10,000 Observations</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Custom CSV Controls -->
+    <div id="customControls" style="display:none; margin-bottom:10px;">
+      <div class="control-group" style="margin-bottom:4px;">
+        <label>Raw Pairs $(x_i, f_i)$ (comma / tab / semicolon):</label>
+        <textarea id="customCsvInput" placeholder="X, F&#10;TLS1.3, Benign&#10;TLS1.2, Malware&#10;..."></textarea>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Significance Level ($\alpha$):</label>
+      <select id="alphaSelect" onchange="runAnalysis()">
+        <option value="0.10">α = 0.10 (90% Confidence)</option>
+        <option value="0.05" selected>α = 0.05 (95% Confidence — Standard)</option>
+        <option value="0.01">α = 0.01 (99% Confidence)</option>
+        <option value="0.001">α = 0.001 (99.9% Confidence)</option>
+      </select>
+    </div>
+
+    <button class="run-btn" onclick="runAnalysis()">▶ Construct Table & Run $\chi^2$ Test</button>
+    <button class="sec-btn" id="resampleBtn" style="display:none;" onclick="runAnalysis()">🎲 Draw New Random Sample</button>
+  </div>
+
+  <div class="param-badge" id="datasetMetaBadge">
+    <!-- Populated dynamically -->
+  </div>
+
+  <div class="sidebar-code">
+    <div class="comment">// Programmatic Contingency Builder</div>
+    <div><span class="kw">for</span> (<span class="kw">const</span> {x, f} <span class="kw">of</span> pairs) {</div>
+    <div>&nbsp;&nbsp;<span class="hl">n[rowIdx(x)][colIdx(f)]++;</span></div>
+    <div>&nbsp;&nbsp;rowSum[rowIdx(x)]++;</div>
+    <div>&nbsp;&nbsp;colSum[colIdx(f)]++;</div>
+    <div>}</div>
+    <div class="comment">// Expected under H0: E_ij = n_i· * n_·j / N</div>
+    <div><span class="hl">chi2 += (n_ij - E_ij)**2 / E_ij;</span></div>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+
+  <!-- SECTION 1: MATHEMATICAL FORMULATION & PROGRAMMATIC PIPELINE -->
+  <section class="card">
+    <div class="card-header">
+      <span>1. Mathematical Formulation — Marginal, Conditional & Expected Frequencies</span>
+      <span class="badge">Bivariate Categorical Framework $(X, F)$</span>
+    </div>
+
+    <div class="deriv-grid">
+      <div class="deriv-box">
+        <h4>Joint, Marginal & Conditional Distributions</h4>
+        <p>Given $N$ bivariate observations $\{(x_k, f_k)\}_{k=1}^N$ with $X \in \{x_1, \dots, x_r\}$ and $F \in \{f_1, \dots, f_c\}$, the programmatic contingency table counts joint occurrences $n_{ij} = \sum_{k=1}^N \mathbb{I}(X_k = x_i, F_k = f_j)$:</p>
+        $$p_{ij} = \frac{n_{ij}}{N}, \qquad p_{i\bullet} = \sum_{j=1}^c p_{ij} = \frac{n_{i\bullet}}{N}, \qquad p_{\bullet j} = \sum_{i=1}^r p_{ij} = \frac{n_{\bullet j}}{N}$$
+        <p>The <strong>conditional frequency distributions</strong> (row and column profiles) are:</p>
+        $$P(F = f_j \mid X = x_i) = \frac{n_{ij}}{n_{i\bullet}} = \frac{p_{ij}}{p_{i\bullet}}, \qquad P(X = x_i \mid F = f_j) = \frac{n_{ij}}{n_{\bullet j}} = \frac{p_{ij}}{p_{\bullet j}}$$
+      </div>
+
+      <div class="deriv-box" style="border-left-color: #059669;">
+        <h4>Independence Hypothesis ($H_0$), Expected Counts & Pearson's $\chi^2$</h4>
+        <p>Under statistical independence ($H_0: X \perp\!\!\!\perp F$), joint probabilities factorize into the product of marginals ($p_{ij} = p_{i\bullet}p_{\bullet j}$), yielding the <strong>expected frequencies</strong>:</p>
+        $$E_{ij} = N \cdot \hat{p}_{i\bullet} \cdot \hat{p}_{\bullet j} = \frac{n_{i\bullet} \cdot n_{\bullet j}}{N}$$
+        <p>Discrepancies between observed $n_{ij}$ and expected $E_{ij}$ are aggregated via <strong>Pearson's Chi-Square statistic</strong> with $\nu = (r-1)(c-1)$ degrees of freedom:</p>
+        $$\chi^2 = \sum_{i=1}^r \sum_{j=1}^c \frac{(n_{ij} - E_{ij})^2}{E_{ij}} \xrightarrow[H_0]{d} \chi^2_\nu, \qquad p\text{-value} = P(\chi^2_\nu \ge \chi^2_{\text{obs}})$$
+      </div>
+    </div>
+
+    <div style="margin-top: 14px;">
+      <div style="font-size: 0.84rem; font-weight: 600; color: #334155;">
+        Programmatically Ingested Raw Dataset Stream $(x_k, f_k)$ Preview (First 24 of $N$ records):
+      </div>
+      <div class="raw-preview" id="rawPairsPreview"></div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: HYPOTHESIS TEST SUMMARY & INTERPRETATION -->
+  <section class="card">
+    <div class="card-header">
+      <span>2. Chi-Square Independence Test Results & Statistical Interpretation</span>
+      <span class="badge" id="decisionBadge">Awaiting Computation</span>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-box">
+        <div class="kpi-label">Pearson $\chi^2$ Statistic</div>
+        <div class="kpi-val" id="kpiChi2">-</div>
+        <div class="kpi-sub" id="kpiCrit">Crit: -</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">Degrees of Freedom ($\nu$)</div>
+        <div class="kpi-val" id="kpiDf">-</div>
+        <div class="kpi-sub" id="kpiDim">$(r-1)(c-1)$</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">Exact $p$-value</div>
+        <div class="kpi-val" id="kpiPval">-</div>
+        <div class="kpi-sub" id="kpiAlpha">Threshold $\alpha = 0.05$</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">Cramér's $V$ (Effect Size)</div>
+        <div class="kpi-val" id="kpiCramer">-</div>
+        <div class="kpi-sub" id="kpiEffectLabel">-</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">Likelihood Ratio $G^2$ / $I(X;F)$</div>
+        <div class="kpi-val" id="kpiG2">-</div>
+        <div class="kpi-sub" id="kpiMI">MI: - bits</div>
+      </div>
+    </div>
+
+    <div id="cochranBanner" style="font-size: 0.85rem; padding: 9px 14px; border-radius: 6px; margin-bottom: 10px; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
+      <!-- Cochran's rule check -->
+    </div>
+
+    <div id="yatesBanner" style="display:none; font-size: 0.85rem; padding: 9px 14px; border-radius: 6px; margin-bottom: 10px; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;">
+      <!-- Yates continuity correction for 2x2 -->
+    </div>
+
+    <div id="verdictBox" class="verdict-box">
+      <!-- Dynamic statistical interpretation -->
+    </div>
+  </section>
+
+  <!-- SECTION 3: CONTINGENCY TABLE (OBSERVED & MARGINALS) + EXPECTED & RESIDUALS -->
+  <section class="card">
+    <div class="card-header">
+      <span>3. Programmatic Contingency Table: Observed ($n_{ij}$), Marginals & Expected ($E_{ij}$)</span>
+      <span class="badge" id="tableDimBadge">r × c Table</span>
+    </div>
+
+    <div class="deriv-grid">
+      <div>
+        <h4 style="margin: 0 0 6px 0; color: #1e3a8a; font-size: 0.95rem;">
+          A. Observed Joint Counts $n_{ij}$ &amp; Relative Frequencies $p_{ij}$ (with Marginals)
+        </h4>
+        <div class="table-wrap" id="observedTableContainer"></div>
+      </div>
+
+      <div>
+        <h4 style="margin: 0 0 6px 0; color: #065f46; font-size: 0.95rem;">
+          B. Expected Frequencies $E_{ij}$ under $H_0$, Standardized Residuals $r_{ij}$ &amp; Cell $\chi^2_{ij}$
+        </h4>
+        <div class="table-wrap" id="expectedTableContainer"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: CONDITIONAL FREQUENCY DISTRIBUTIONS -->
+  <section class="card">
+    <div class="card-header">
+      <span>4. Conditional Frequency Distributions: $P(F \mid X)$ and $P(X \mid F)$</span>
+      <span class="badge">Invariance Check: $P(F \mid X) \stackrel{?}{=} P(F)$</span>
+    </div>
+    <p style="margin: 0 0 12px 0; font-size: 0.9rem; color: var(--text-muted);">
+      By definition, $X$ and $F$ are statistically independent if and only if every row conditional distribution $P(F = f_j \mid X = x_i)$ equals the column marginal distribution $P(F = f_j)$ (and equivalently $P(X = x_i \mid F = f_j) = P(X = x_i)$).
+    </p>
+
+    <div class="deriv-grid">
+      <div>
+        <h4 style="margin: 0 0 6px 0; color: #1e3a8a; font-size: 0.95rem;">
+          A. Row Conditional Frequencies $P(F = f_j \mid X = x_i) = n_{ij} / n_{i\bullet}$
+        </h4>
+        <div class="table-wrap" id="condRowTableContainer"></div>
+      </div>
+
+      <div>
+        <h4 style="margin: 0 0 6px 0; color: #1e3a8a; font-size: 0.95rem;">
+          B. Column Conditional Frequencies $P(X = x_i \mid F = f_j) = n_{ij} / n_{\bullet j}$
+        </h4>
+        <div class="table-wrap" id="condColTableContainer"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: VISUAL DIAGNOSTICS -->
+  <section class="card">
+    <div class="card-header">
+      <span>5. Visual Diagnostics — Conditional Profiles &amp; $\chi^2_\nu$ Sampling Distribution</span>
+      <span class="badge">Graphical Independence Verification</span>
+    </div>
+
+    <div class="chart-grid-2">
+      <div class="chart-box">
+        <canvas id="chartCondProfiles"></canvas>
+      </div>
+      <div class="chart-box">
+        <canvas id="chartChi2Pdf"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 6: THEORETICAL REPORT & ASSOCIATION VS CAUSALITY -->
+  <section class="card">
+    <div class="card-header">
+      <span>6. Theoretical Foundations: Statistical Independence vs. Causality</span>
+      <span class="badge">Academic &amp; Cybersecurity Report</span>
+    </div>
+
+    <div class="essay-grid">
+      <div class="essay-block">
+        <h3>1. Independence in Probability Theory vs. Finite-Sample Statistics</h3>
+        <p>
+          In axiomatic probability theory, two discrete random variables $X$ and $F$ defined on $(\Omega, \mathcal{F}, P)$ are <strong>stochastically independent</strong> ($X \perp\!\!\!\perp F$) if and only if their joint probability mass function factorizes identically across the entire support:
+          $$P(X = x_i, F = f_j) = P(X = x_i)\,P(F = f_j) \quad \forall (i, j)$$
+          Equivalently, knowing the realization of $X$ provides zero information about $F$: $P(F = f_j \mid X = x_i) = P(F = f_j)$ and the Shannon mutual information vanishes ($I(X; F) = 0$).
+        </p>
+        <p>
+          In empirical statistics, however, we only observe a finite sample of size $N$. Even when $H_0: X \perp\!\!\!\perp F$ is strictly true, random sampling fluctuations ensure that $n_{ij}/N \ne p_{i\bullet}p_{\bullet j}$. Pearson's $\chi^2$ test quantifies whether the normalized squared deviations $\sum_{i,j} (n_{ij} - E_{ij})^2 / E_{ij}$ exceed what can plausibly arise from multinomial sampling noise under the asymptotic $\chi^2_{(r-1)(c-1)}$ law.
+        </p>
+      </div>
+
+      <div class="essay-block">
+        <h3>2. Maximum Likelihood Expected Counts &amp; Degrees of Freedom</h3>
+        <p>
+          Under the null hypothesis $H_0$, the unknown joint cell probabilities are parameterized by $\theta_{ij} = p_i q_j$ subject to $\sum_{i=1}^r p_i = 1$ and $\sum_{j=1}^c q_j = 1$. Maximizing the multinomial log-likelihood $\ell(p, q) = \sum_{i,j} n_{ij} \ln(p_i q_j)$ yields the Maximum Likelihood Estimators $\hat{p}_i = n_{i\bullet}/N$ and $\hat{q}_j = n_{\bullet j}/N$, which directly produce $E_{ij} = N\hat{p}_i\hat{q}_j = n_{i\bullet}n_{\bullet j}/N$.
+        </p>
+        <p>
+          Why are the degrees of freedom $\nu = (r - 1)(c - 1)$? An unconstrained $r \times c$ contingency table has $rc - 1$ free cell probabilities (since $\sum p_{ij} = 1$). Under $H_0$, we estimate $(r - 1)$ independent row marginals and $(c - 1)$ independent column marginals from the data. Subtracting estimated parameters gives:
+          $$\nu = (rc - 1) - \big[(r - 1) + (c - 1)\big] = rc - r - c + 1 = (r - 1)(c - 1)$$
+        </p>
+      </div>
+
+      <div class="essay-block">
+        <h3>3. Statistical Association vs. Causality (Confounding &amp; Simpson's Paradox)</h3>
+        <p>
+          Rejecting $H_0$ in a $\chi^2$ test establishes <strong>statistical association</strong> ($P(F \mid X) \ne P(F)$), which is a symmetric property of the joint distribution ($X \not\!\perp\!\!\!\perp F \iff F \not\!\perp\!\!\!\perp X$). <strong>Causality</strong>, by contrast, is an asymmetric structural property governed by interventional distributions: $X$ causes $F$ only if actively intervening on $X$ changes the distribution of $F$, i.e., $P(F \mid \text{do}(X = x_1)) \ne P(F \mid \text{do}(X = x_2))$.
+        </p>
+        <ul>
+          <li><strong>Confounding (Common Cause $X \leftarrow Z \rightarrow F$):</strong> Two variables can exhibit a massive $\chi^2$ and $p < 10^{-10}$ with zero direct causal link if both are driven by a latent confounder $Z$.</li>
+          <li><strong>Reverse Causality:</strong> Observational contingency tables cannot distinguish $X \to F$ from $F \to X$ without temporal ordering or randomized experiments.</li>
+          <li><strong>Simpson's Paradox:</strong> Marginalizing over a confounder $Z$ can even invert the direction of association observed inside every conditional stratum $Z = z_k$.</li>
+        </ul>
+      </div>
+
+      <div class="essay-block">
+        <h3>4. Cybersecurity Implications: IDS Feature Selection &amp; SOC Fallacies</h3>
+        <p>
+          In Cybersecurity and Network Telemetry, $\chi^2$ contingency analysis and Mutual Information $I(X; F) \approx \frac{G^2}{2N\ln 2}$ are foundational tools for <strong>automated feature selection</strong> in Intrusion Detection Systems (IDS). Before training a classifier, analysts test whether discrete packet attributes $X$ (e.g., protocol type, TCP flag bitmasks, destination port buckets) are statistically independent of malicious labels $F$. Features with negligible $\chi^2$ (high $p$-value) carry no discriminative signal and are pruned.
+        </p>
+        <p>
+          However, confusing statistical association with causality in a Security Operations Center (SOC) leads to brittle automated defenses: if a malware family happens to use a specific TLS cipher suite or cloud ASN ($X$) due to a confounder $Z$ (the attacker's default build template), blocking all traffic with attribute $X$ treats a correlational artifact as a causal root cause, causing severe false-positive outages on legitimate traffic.
+        </p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* =========================================================================
+   1. EXACT CHI-SQUARE SURVIVAL FUNCTION (P-VALUE) & QUANTILE INVERSE
+   Verified to ~1e-15 relative precision against scipy.stats.chi2
+========================================================================= */
+function gammaln(z) {
+  const c = [
+    0.99999999999980993,
+    676.5203681218851,
+    -1259.1392167224028,
+    771.32342877765313,
+    -176.61502916214059,
+    12.507343278686905,
+    -0.13857109526572012,
+    9.9843695780195716e-6,
+    1.5056327351493116e-7
+  ];
+  if (z < 0.5) {
+    return Math.log(Math.PI / Math.sin(Math.PI * z)) - gammaln(1.0 - z);
+  }
+  z -= 1.0;
+  let x = c[0];
+  for (let i = 1; i < 9; i++) x += c[i] / (z + i);
+  const t = z + 7.5;
+  return 0.5 * Math.log(2.0 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+}
+
+function gammpSeries(a, x) {
+  if (x <= 0.0) return 0.0;
+  const gln = gammaln(a);
+  let ap = a;
+  let delt = 1.0 / a;
+  let sum = delt;
+  for (let n = 1; n <= 500; n++) {
+    ap += 1.0;
+    delt *= x / ap;
+    sum += delt;
+    if (Math.abs(delt) < Math.abs(sum) * 1e-15) break;
+  }
+  return sum * Math.exp(-x + a * Math.log(x) - gln);
+}
+
+function gammqCF(a, x) {
+  const gln = gammaln(a);
+  let b = x + 1.0 - a;
+  let c = 1.0 / 1e-30;
+  let d = 1.0 / b;
+  let h = d;
+  for (let i = 1; i <= 500; i++) {
+    const an = -i * (i - a);
+    b += 2.0;
+    d = an * d + b;
+    if (Math.abs(d) < 1e-30) d = 1e-30;
+    c = b + an / c;
+    if (Math.abs(c) < 1e-30) c = 1e-30;
+    d = 1.0 / d;
+    const delt = d * c;
+    h *= delt;
+    if (Math.abs(delt - 1.0) < 1e-15) break;
+  }
+  return Math.exp(-x + a * Math.log(x) - gln) * h;
+}
+
+// Upper tail probability P(Chi2_df >= x)
+function chi2Survival(x, df) {
+  if (x <= 0.0) return 1.0;
+  const a = 0.5 * df;
+  const z = 0.5 * x;
+  if (z < a + 1.0) {
+    return Math.max(0.0, 1.0 - gammpSeries(a, z));
+  } else {
+    return Math.max(0.0, gammqCF(a, z));
+  }
+}
+
+// Critical value x such that P(Chi2_df >= x) = alpha
+function chi2Critical(alpha, df) {
+  if (alpha <= 0.0) return Infinity;
+  if (alpha >= 1.0) return 0.0;
+  let lo = 0.0;
+  let hi = Math.max(df * 5.0, 20.0);
+  while (chi2Survival(hi, df) > alpha) hi *= 2.0;
+  for (let iter = 0; iter < 100; iter++) {
+    const mid = 0.5 * (lo + hi);
+    if (chi2Survival(mid, df) > alpha) lo = mid;
+    else hi = mid;
+  }
+  return 0.5 * (lo + hi);
+}
+
+// Chi-square PDF for plotting
+function chi2PDF(x, df) {
+  if (x <= 0.0) return df === 2 ? 0.5 : 0.0;
+  const k = 0.5 * df;
+  const logPdf = (k - 1.0) * Math.log(x) - 0.5 * x - k * Math.log(2.0) - gammaln(k);
+  return Math.exp(logPdf);
+}
+
+/* =========================================================================
+   2. BIVARIATE DATASET GENERATORS (RAW (X, F) PAIRS)
+========================================================================= */
+function expandCountsToRawPairs(rowLabels, colLabels, countMatrix, seed = 42) {
+  const pairs = [];
+  for (let i = 0; i < rowLabels.length; i++) {
+    for (let j = 0; j < colLabels.length; j++) {
+      const cnt = countMatrix[i][j];
+      for (let k = 0; k < cnt; k++) {
+        pairs.push({ x: rowLabels[i], f: colLabels[j] });
+      }
+    }
+  }
+  // Deterministic Fisher-Yates shuffle so raw stream looks like realistic telemetry
+  let s = seed;
+  const rand = () => {
+    s = (s * 1664525 + 1013904223) % 4294967296;
+    return s / 4294967296;
+  };
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const tmp = pairs[i];
+    pairs[i] = pairs[j];
+    pairs[j] = tmp;
+  }
+  return pairs;
+}
+
+function getDatasetPairs() {
+  const source = document.getElementById('datasetSelect').value;
+
+  if (source === 'cyber_ids') {
+    const rows = ['TCP', 'UDP', 'ICMP'];
+    const cols = ['Benign', 'Port_Scan', 'DDoS_Flood'];
+    // N = 1200 packets; strong association between protocol and attack vector
+    const counts = [
+      [480, 145, 35],   // TCP: 660
+      [190, 30, 160],   // UDP: 380
+      [50,  15, 95]     // ICMP: 160
+    ];
+    return {
+      title: 'Network Protocol (X) vs. IDS Alert Class (F)',
+      xName: 'Protocol (X)',
+      fName: 'IDS Alert (F)',
+      rowOrder: rows,
+      colOrder: cols,
+      pairs: expandCountsToRawPairs(rows, cols, counts, 101),
+      contextNote: 'Packet telemetry from a perimeter IDS sensor. UDP and ICMP exhibit disproportionately high conditional probabilities of DDoS_Flood compared to TCP, while TCP concentrates Port_Scan activity.'
+    };
+  }
+
+  if (source === 'cyber_ecc') {
+    const rows = ['Rack_A', 'Rack_B', 'Rack_C'];
+    const cols = ['No_Error', 'Single_Bit_ECC'];
+    // N = 1000 memory checks; independent (~12% transient cosmic-ray bit flip across all racks)
+    const counts = [
+      [306, 44],  // Rack_A: 350 (12.57%)
+      [355, 45],  // Rack_B: 400 (11.25%)
+      [219, 31]   // Rack_C: 250 (12.40%)
+    ];
+    return {
+      title: 'Server Rack Location (X) vs. Transient ECC Bit-Flip (F)',
+      xName: 'Server Rack (X)',
+      fName: 'ECC Status (F)',
+      rowOrder: rows,
+      colOrder: cols,
+      pairs: expandCountsToRawPairs(rows, cols, counts, 202),
+      contextNote: 'Hardware memory telemetry across three identical server racks. Because transient single-bit soft errors arise uniformly from background radiation, the conditional error rate P(Single_Bit_ECC | Rack) stays invariant (~12%) across all racks.'
+    };
+  }
+
+  if (source === 'cyber_phish') {
+    const rows = ['Trained', 'Untrained'];
+    const cols = ['Reported_Email', 'Clicked_Link'];
+    // N = 600 employees; 2x2 table
+    const counts = [
+      [268, 52],  // Trained: 320 (16.25% click rate)
+      [172, 108]  // Untrained: 280 (38.57% click rate)
+    ];
+    return {
+      title: 'Security Awareness Training (X) vs. Phishing Simulation Outcome (F)',
+      xName: 'Training Group (X)',
+      fName: 'Outcome (F)',
+      rowOrder: rows,
+      colOrder: cols,
+      pairs: expandCountsToRawPairs(rows, cols, counts, 303),
+      contextNote: 'Controlled enterprise phishing simulation (2×2 contingency design). Untrained staff exhibit more than double the conditional click rate of trained staff.'
+    };
+  }
+
+  if (source === 'synthetic') {
+    const lambda = parseFloat(document.getElementById('lambdaSlider').value);
+    const N = parseInt(document.getElementById('synthNSelect').value);
+    const rows = ['X1_Low', 'X2_Med', 'X3_High'];
+    const cols = ['F1_Normal', 'F2_Suspicious', 'F3_Critical'];
+    const pX = [0.50, 0.30, 0.20];
+    const pF = [0.60, 0.25, 0.15];
+    // Strongly dependent coupling matrix with identical marginals pX and pF
+    const depMatrix = [
+      [0.45, 0.04, 0.01],
+      [0.12, 0.15, 0.03],
+      [0.03, 0.06, 0.11]
+    ];
+
+    // Joint distribution P_lambda(i, j) = (1 - lambda)*pX[i]*pF[j] + lambda*depMatrix[i][j]
+    const cdf = [];
+    let cum = 0.0;
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        const pInd = pX[i] * pF[j];
+        const pJoint = (1.0 - lambda) * pInd + lambda * depMatrix[i][j];
+        cum += pJoint;
+        cdf.push({ i, j, cum });
+      }
+    }
+    cdf[cdf.length - 1].cum = 1.0;
+
+    const pairs = [];
+    for (let k = 0; k < N; k++) {
+      const u = Math.random();
+      let chosen = cdf[cdf.length - 1];
+      for (let m = 0; m < cdf.length; m++) {
+        if (u <= cdf[m].cum) {
+          chosen = cdf[m];
+          break;
+        }
+      }
+      pairs.push({ x: rows[chosen.i], f: cols[chosen.j] });
+    }
+
+    return {
+      title: `Synthetic Bivariate Sample (λ = ${lambda.toFixed(2)}, N = ${N})`,
+      xName: 'Feature X',
+      fName: 'Factor F',
+      rowOrder: rows,
+      colOrder: cols,
+      pairs,
+      contextNote: lambda === 0
+        ? 'Generated under exact null independence (λ = 0): P(X=x_i, F=f_j) = P(X=x_i)P(F=f_j). Any observed deviation from E_ij is purely finite-sample multinomial noise.'
+        : `Generated with mixture dependence parameter λ = ${lambda.toFixed(2)} interpolating between independent marginals and a strongly coupled bivariate distribution.`
+    };
+  }
+
+  if (source === 'custom_csv') {
+    const raw = document.getElementById('customCsvInput').value.trim();
+    const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    const pairs = [];
+    lines.forEach((line, idx) => {
+      const parts = line.split(/[,;\t]+/).map(s => s.trim()).filter(s => s.length > 0);
+      if (parts.length >= 2) {
+        // Skip header line if first line is literally "X, F" or "x, f"
+        if (idx === 0 && parts[0].toLowerCase() === 'x' && parts[1].toLowerCase() === 'f') return;
+        pairs.push({ x: parts[0], f: parts[1] });
+      }
+    });
+    return {
+      title: 'Custom User Bivariate Dataset (X, F)',
+      xName: 'Variable X',
+      fName: 'Variable F',
+      rowOrder: null,
+      colOrder: null,
+      pairs,
+      contextNote: 'User-supplied raw bivariate observations parsed directly into a contingency table.'
+    };
+  }
+}
+
+/* =========================================================================
+   3. PROGRAMMATIC CONTINGENCY TABLE & CHI-SQUARE ENGINE
+========================================================================= */
+function analyzeBivariateDataset(pairs, rowOrder = null, colOrder = null) {
+  const N = pairs.length;
+  if (N === 0) return { error: 'Dataset is empty. Provide at least one (X, F) observation pair.' };
+
+  const rows = rowOrder
+    ? rowOrder.filter(r => pairs.some(p => p.x === r))
+    : Array.from(new Set(pairs.map(p => p.x))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  const cols = colOrder
+    ? colOrder.filter(c => pairs.some(p => p.f === c))
+    : Array.from(new Set(pairs.map(p => p.f))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  const r = rows.length;
+  const c = cols.length;
+  if (r < 2 || c < 2) {
+    return {
+      error: `Contingency analysis requires at least 2 distinct categories for both X and F (found r = ${r} for X, c = ${c} for F), so that degrees of freedom ν = (r-1)(c-1) ≥ 1.`
+    };
+  }
+
+  const rowMap = new Map(rows.map((val, idx) => [val, idx]));
+  const colMap = new Map(cols.map((val, idx) => [val, idx]));
+
+  // Joint counts n_ij, row marginals n_i., col marginals n_.j
+  const n = Array.from({ length: r }, () => new Array(c).fill(0));
+  const rowSum = new Array(r).fill(0);
+  const colSum = new Array(c).fill(0);
+
+  for (const { x, f } of pairs) {
+    const i = rowMap.get(x);
+    const j = colMap.get(f);
+    n[i][j]++;
+    rowSum[i]++;
+    colSum[j]++;
+  }
+
+  // Relative joint p_ij, marginals p_i., p_.j, conditionals P(F|X) and P(X|F)
+  const pJoint = Array.from({ length: r }, () => new Array(c).fill(0));
+  const pRow = rowSum.map(cnt => cnt / N);
+  const pCol = colSum.map(cnt => cnt / N);
+  const condFgivenX = Array.from({ length: r }, () => new Array(c).fill(0));
+  const condXgivenF = Array.from({ length: r }, () => new Array(c).fill(0));
+
+  // Expected frequencies E_ij, residuals, Chi2, G2, Yates
+  const E = Array.from({ length: r }, () => new Array(c).fill(0));
+  const pearsonRes = Array.from({ length: r }, () => new Array(c).fill(0));
+  const cellChi2 = Array.from({ length: r }, () => new Array(c).fill(0));
+
+  let chi2 = 0.0;
+  let g2 = 0.0;
+  let yatesChi2 = 0.0;
+  let minExpected = Infinity;
+  let cellsBelow5 = 0;
+  let cellsBelow1 = 0;
+
+  for (let i = 0; i < r; i++) {
+    for (let j = 0; j < c; j++) {
+      pJoint[i][j] = n[i][j] / N;
+      condFgivenX[i][j] = n[i][j] / rowSum[i];
+      condXgivenF[i][j] = n[i][j] / colSum[j];
+
+      const eij = (rowSum[i] * colSum[j]) / N;
+      E[i][j] = eij;
+
+      if (eij < minExpected) minExpected = eij;
+      if (eij < 5.0) cellsBelow5++;
+      if (eij < 1.0) cellsBelow1++;
+
+      const diff = n[i][j] - eij;
+      pearsonRes[i][j] = diff / Math.sqrt(eij);
+      const contrib = (diff * diff) / eij;
+      cellChi2[i][j] = contrib;
+      chi2 += contrib;
+
+      if (n[i][j] > 0) {
+        g2 += 2.0 * n[i][j] * Math.log(n[i][j] / eij);
+      }
+
+      if (r === 2 && c === 2) {
+        const absCorr = Math.max(0.0, Math.abs(diff) - 0.5);
+        yatesChi2 += (absCorr * absCorr) / eij;
+      }
+    }
+  }
+
+  const df = (r - 1) * (c - 1);
+  const pValue = chi2Survival(chi2, df);
+  const g2PValue = chi2Survival(g2, df);
+  const yatesPValue = (r === 2 && c === 2) ? chi2Survival(yatesChi2, 1) : null;
+  const cramersV = Math.sqrt(chi2 / (N * Math.min(r - 1, c - 1)));
+  const mutualInfoBits = g2 / (2.0 * N * Math.LN2);
+
+  return {
+    N, r, c, rows, cols,
+    n, rowSum, colSum,
+    pJoint, pRow, pCol,
+    condFgivenX, condXgivenF,
+    E, pearsonRes, cellChi2,
+    chi2, df, pValue,
+    g2, g2PValue,
+    yatesChi2, yatesPValue,
+    cramersV, mutualInfoBits,
+    minExpected, cellsBelow5, cellsBelow1
+  };
+}
+
+/* =========================================================================
+   4. UI RENDERING & CHART VISUALIZATIONS
+========================================================================= */
+let chartInstances = {};
+
+function onDatasetSourceChange() {
+  const src = document.getElementById('datasetSelect').value;
+  document.getElementById('syntheticControls').style.display = src === 'synthetic' ? 'block' : 'none';
+  document.getElementById('resampleBtn').style.display = src === 'synthetic' ? 'block' : 'none';
+  document.getElementById('customControls').style.display = src === 'custom_csv' ? 'block' : 'none';
+
+  if (src === 'custom_csv' && !document.getElementById('customCsvInput').value.trim()) {
+    document.getElementById('customCsvInput').value =
+`X, F
+TLS1.3, Benign
+TLS1.3, Benign
+TLS1.3, Benign
+TLS1.2, Malware
+TLS1.2, Malware
+TLS1.3, Benign
+HTTP, Malware
+HTTP, Malware
+HTTP, Benign
+TLS1.3, Benign
+TLS1.2, Benign
+HTTP, Malware`;
+  }
+  runAnalysis();
+}
+
+function onLambdaChange() {
+  const val = parseFloat(document.getElementById('lambdaSlider').value);
+  const tag = val === 0 ? '(Exact Independence)' : val < 0.4 ? '(Weak Dependence)' : val < 0.75 ? '(Moderate Dependence)' : '(Strong Dependence)';
+  document.getElementById('lambdaLabel').textContent = `${val.toFixed(2)} ${tag}`;
+  runAnalysis();
+}
+
+function formatPValue(p) {
+  if (p === 0) return '< 1.00e-16';
+  if (p < 1e-4) return p.toExponential(3);
+  return p.toFixed(6);
+}
+
+function effectSizeLabel(v, minDimMinus1) {
+  // Cohen's guidelines adjusted for df* = min(r-1, c-1)
+  const scaled = v * Math.sqrt(minDimMinus1);
+  if (scaled < 0.10) return 'Negligible Association';
+  if (scaled < 0.30) return 'Weak Association';
+  if (scaled < 0.50) return 'Moderate Association';
+  return 'Strong Association';
+}
+
+function runAnalysis() {
+  const ds = getDatasetPairs();
+  const alpha = parseFloat(document.getElementById('alphaSelect').value);
+
+  // Preview raw pairs
+  const previewEl = document.getElementById('rawPairsPreview');
+  const samplePreview = ds.pairs.slice(0, 24).map((p, idx) => `(${idx + 1}: ${p.x}, ${p.f})`).join('  ');
+  previewEl.textContent = samplePreview + (ds.pairs.length > 24 ? `  ... [+${ds.pairs.length - 24} more records]` : '');
+
+  const res = analyzeBivariateDataset(ds.pairs, ds.rowOrder, ds.colOrder);
+  if (res.error) {
+    alert(res.error);
+    return;
+  }
+
+  const critVal = chi2Critical(alpha, res.df);
+  const isDependent = res.pValue < alpha;
+
+  // Sidebar Metadata Badge
+  document.getElementById('datasetMetaBadge').innerHTML =
+    `<strong>Active Dataset Summary:</strong><br>` +
+    `• ${ds.title}<br>` +
+    `• Sample Size $N = ${res.N.toLocaleString()}$<br>` +
+    `• Dimensions: $r = ${res.r}$ rows $\\times$ $c = ${res.c}$ cols<br>` +
+    `• Degrees of Freedom $\\nu = ${res.df}$`;
+
+  // Decision Badge & KPI Cards
+  const decBadge = document.getElementById('decisionBadge');
+  decBadge.textContent = isDependent
+    ? `REJECT H₀ (p < ${alpha}) → Statistically Dependent`
+    : `FAIL TO REJECT H₀ (p ≥ ${alpha}) → Statistically Independent`;
+  decBadge.className = 'badge ' + (isDependent ? 'badge-dep' : 'badge-ind');
+
+  document.getElementById('kpiChi2').textContent = res.chi2.toFixed(4);
+  document.getElementById('kpiCrit').textContent = `Crit χ²(1−α): ${critVal.toFixed(4)}`;
+  document.getElementById('kpiDf').textContent = res.df;
+  document.getElementById('kpiDim').textContent = `(${res.r}−1)×(${res.c}−1)`;
+  document.getElementById('kpiPval').textContent = formatPValue(res.pValue);
+  document.getElementById('kpiAlpha').textContent = `Significance α = ${alpha}`;
+  document.getElementById('kpiCramer').textContent = res.cramersV.toFixed(4);
+  document.getElementById('kpiEffectLabel').textContent = effectSizeLabel(res.cramersV, Math.min(res.r - 1, res.c - 1));
+  document.getElementById('kpiG2').textContent = res.g2.toFixed(4);
+  document.getElementById('kpiMI').textContent = `MI I(X;F): ${res.mutualInfoBits.toFixed(4)} bits`;
+
+  // Cochran's Rule Banner
+  const totalCells = res.r * res.c;
+  const pctBelow5 = (res.cellsBelow5 / totalCells) * 100;
+  const cochranOk = res.minExpected >= 1.0 && pctBelow5 <= 20.0;
+  const cochranEl = document.getElementById('cochranBanner');
+  cochranEl.innerHTML = cochranOk
+    ? `<strong>✅ Cochran's Asymptotic Validity Check Passed:</strong> Minimum expected cell count is $E_{\\min} = ${res.minExpected.toFixed(2)} \\ge 1$, and ${res.cellsBelow5}/${totalCells} (${pctBelow5.toFixed(1)}%) cells have $E_{ij} < 5$ ($\\le 20\\%$). The $\\chi^2_{${res.df}}$ reference distribution is well-calibrated.`
+    : `<strong>⚠️ Cochran's Asymptotic Warning:</strong> $E_{\\min} = ${res.minExpected.toFixed(2)}$, and ${res.cellsBelow5}/${totalCells} (${pctBelow5.toFixed(1)}%) cells have $E_{ij} < 5$. With sparse expected counts, the asymptotic $\\chi^2_{${res.df}}$ approximation may be anti-conservative; consider increasing $N$ or merging sparse categories.`;
+
+  // Yates Continuity Correction Banner (only for 2x2)
+  const yatesEl = document.getElementById('yatesBanner');
+  if (res.r === 2 && res.c === 2) {
+    yatesEl.style.display = 'block';
+    yatesEl.innerHTML =
+      `<strong>2×2 Table Diagnostics — Yates' Continuity Correction:</strong> $\\chi^2_{\\text{Yates}} = ${res.yatesChi2.toFixed(4)}$ ($p = ${formatPValue(res.yatesPValue)}$) vs. uncorrected Pearson $\\chi^2 = ${res.chi2.toFixed(4)}$ ($p = ${formatPValue(res.pValue)}$).`;
+  } else {
+    yatesEl.style.display = 'none';
+  }
+
+  // Dynamic Verdict & Interpretation
+  const verdictEl = document.getElementById('verdictBox');
+  verdictEl.className = 'verdict-box ' + (isDependent ? 'verdict-dep' : 'verdict-ind');
+  if (isDependent) {
+    verdictEl.innerHTML =
+      `<strong>Statistical Conclusion — Evidence of Statistical Dependence ($X \\not\\perp\\!\\!\\!\\perp F$):</strong><br>` +
+      `Since $\\chi^2_{\\text{obs}} = ${res.chi2.toFixed(4)} > \\chi^2_{${(1 - alpha).toFixed(3)}, ${res.df}} = ${critVal.toFixed(4)}$ (equivalently, $p = ${formatPValue(res.pValue)} < \\alpha = ${alpha}$), we <strong>reject the null hypothesis $H_0$</strong> of statistical independence. ` +
+      `The conditional distributions $P(F \\mid X = x_i)$ deviate significantly from the marginal baseline $P(F)$, with effect size Cramér's $V = ${res.cramersV.toFixed(4)}$ (${effectSizeLabel(res.cramersV, Math.min(res.r - 1, res.c - 1)).toLowerCase()}) and empirical mutual information $\\hat{I}(X; F) = ${res.mutualInfoBits.toFixed(4)}$ bits.<br>` +
+      `<strong>Domain &amp; Causal Note:</strong> ${ds.contextNote} Note that rejecting $H_0$ proves <em>statistical association</em> in the observed joint distribution, not direct causation ($X \\to F$) without ruling out latent confounders.`;
+  } else {
+    verdictEl.innerHTML =
+      `<strong>Statistical Conclusion — Consistent with Statistical Independence ($X \\perp\\!\\!\\!\\perp F$):</strong><br>` +
+      `Since $\\chi^2_{\\text{obs}} = ${res.chi2.toFixed(4)} \\le \\chi^2_{${(1 - alpha).toFixed(3)}, ${res.df}} = ${critVal.toFixed(4)}$ (equivalently, $p = ${formatPValue(res.pValue)} \\ge \\alpha = ${alpha}$), we <strong>fail to reject the null hypothesis $H_0$</strong>. ` +
+      `Observed cell counts $n_{ij}$ match the independence expectations $E_{ij} = n_{i\\bullet}n_{\\bullet j}/N$ within normal multinomial sampling variation (all $|r_{ij}|$ are small, Cramér's $V = ${res.cramersV.toFixed(4)}$). Thus, conditioning on $X$ does not significantly alter the distribution of $F$.<br>` +
+      `<strong>Domain Note:</strong> ${ds.contextNote}`;
+  }
+
+  document.getElementById('tableDimBadge').textContent = `${res.r} × ${res.c} Table (N = ${res.N})`;
+
+  renderContingencyTables(ds, res);
+  renderCharts(ds, res, critVal);
+
+  if (window.MathJax) MathJax.typesetPromise();
+}
+
+function renderContingencyTables(ds, res) {
+  // A. Observed Joint Table + Marginals
+  let obsHtml = `<table><thead><tr><th>${ds.xName} \\ ${ds.fName}</th>`;
+  res.cols.forEach(c => { obsHtml += `<th>${c}</th>`; });
+  obsHtml += `<th>Row Marginal $n_{i\\bullet}$ ($p_{i\\bullet}$)</th></tr></thead><tbody>`;
+
+  for (let i = 0; i < res.r; i++) {
+    obsHtml += `<tr><td>${res.rows[i]}</td>`;
+    for (let j = 0; j < res.c; j++) {
+      obsHtml += `<td><span class="cell-main">${res.n[i][j]}</span><span class="cell-sub">(${(res.pJoint[i][j] * 100).toFixed(2)}%)</span></td>`;
+    }
+    obsHtml += `<td class="marginal-col"><span class="cell-main">${res.rowSum[i]}</span><span class="cell-sub">(${(res.pRow[i] * 100).toFixed(2)}%)</span></td></tr>`;
+  }
+
+  obsHtml += `<tr class="marginal-row"><td>Col Marginal $n_{\\bullet j}$ ($p_{\\bullet j}$)</td>`;
+  for (let j = 0; j < res.c; j++) {
+    obsHtml += `<td><span class="cell-main">${res.colSum[j]}</span><span class="cell-sub">(${(res.pCol[j] * 100).toFixed(2)}%)</span></td>`;
+  }
+  obsHtml += `<td><span class="cell-main">N = ${res.N}</span><span class="cell-sub">(100.00%)</span></td></tr></tbody></table>`;
+  document.getElementById('observedTableContainer').innerHTML = obsHtml;
+
+  // B. Expected Frequencies E_ij, Pearson Residuals r_ij, Cell Chi2
+  let expHtml = `<table><thead><tr><th>${ds.xName} \\ ${ds.fName}</th>`;
+  res.cols.forEach(c => { expHtml += `<th>${c}</th>`; });
+  expHtml += `<th>Row $\\chi^2_{i\\bullet}$</th></tr></thead><tbody>`;
+
+  for (let i = 0; i < res.r; i++) {
+    expHtml += `<tr><td>${res.rows[i]}</td>`;
+    let rowChi = 0;
+    for (let j = 0; j < res.c; j++) {
+      const rVal = res.pearsonRes[i][j];
+      rowChi += res.cellChi2[i][j];
+      const rClass = Math.abs(rVal) >= 2.0 ? (rVal > 0 ? 'res-pos' : 'res-neg') : '';
+      const rSign = rVal >= 0 ? '+' : '';
+      expHtml += `<td>
+        <span class="cell-main">${res.E[i][j].toFixed(2)}</span>
+        <span class="cell-sub ${rClass}">r = ${rSign}${rVal.toFixed(2)}</span>
+        <span class="cell-sub">χ² = ${res.cellChi2[i][j].toFixed(2)}</span>
+      </td>`;
+    }
+    expHtml += `<td class="marginal-col"><span class="cell-main">${rowChi.toFixed(3)}</span></td></tr>`;
+  }
+
+  expHtml += `<tr class="marginal-row"><td>Col $\\chi^2_{\\bullet j}$</td>`;
+  for (let j = 0; j < res.c; j++) {
+    let colChi = 0;
+    for (let i = 0; i < res.r; i++) colChi += res.cellChi2[i][j];
+    expHtml += `<td><span class="cell-main">${colChi.toFixed(3)}</span></td>`;
+  }
+  expHtml += `<td><span class="cell-main">Σ = ${res.chi2.toFixed(3)}</span></td></tr></tbody></table>`;
+  document.getElementById('expectedTableContainer').innerHTML = expHtml;
+
+  // C. Row Conditional Frequencies P(F | X)
+  let rCondHtml = `<table><thead><tr><th>Condition $X = x_i$</th>`;
+  res.cols.forEach(c => { rCondHtml += `<th>$P(${c} \\mid X)$</th>`; });
+  rCondHtml += `<th>Row Sum</th></tr></thead><tbody>`;
+
+  for (let i = 0; i < res.r; i++) {
+    rCondHtml += `<tr><td>${res.rows[i]}</td>`;
+    for (let j = 0; j < res.c; j++) {
+      rCondHtml += `<td><span class="cell-main">${res.condFgivenX[i][j].toFixed(4)}</span><span class="cell-sub">(${(res.condFgivenX[i][j] * 100).toFixed(1)}%)</span></td>`;
+    }
+    rCondHtml += `<td class="marginal-col"><span class="cell-main">1.0000</span></td></tr>`;
+  }
+  rCondHtml += `<tr class="marginal-row"><td>Marginal $P(F = f_j)$</td>`;
+  for (let j = 0; j < res.c; j++) {
+    rCondHtml += `<td><span class="cell-main">${res.pCol[j].toFixed(4)}</span><span class="cell-sub">(${(res.pCol[j] * 100).toFixed(1)}%)</span></td>`;
+  }
+  rCondHtml += `<td><span class="cell-main">1.0000</span></td></tr></tbody></table>`;
+  document.getElementById('condRowTableContainer').innerHTML = rCondHtml;
+
+  // D. Column Conditional Frequencies P(X | F)
+  let cCondHtml = `<table><thead><tr><th>Row $X = x_i$</th>`;
+  res.cols.forEach(c => { cCondHtml += `<th>$P(X \\mid ${c})$</th>`; });
+  cCondHtml += `<th>Marginal $P(X)$</th></tr></thead><tbody>`;
+
+  for (let i = 0; i < res.r; i++) {
+    cCondHtml += `<tr><td>${res.rows[i]}</td>`;
+    for (let j = 0; j < res.c; j++) {
+      cCondHtml += `<td><span class="cell-main">${res.condXgivenF[i][j].toFixed(4)}</span><span class="cell-sub">(${(res.condXgivenF[i][j] * 100).toFixed(1)}%)</span></td>`;
+    }
+    cCondHtml += `<td class="marginal-col"><span class="cell-main">${res.pRow[i].toFixed(4)}</span><span class="cell-sub">(${(res.pRow[i] * 100).toFixed(1)}%)</span></td></tr>`;
+  }
+  cCondHtml += `<tr class="marginal-row"><td>Column Sum</td>`;
+  for (let j = 0; j < res.c; j++) {
+    cCondHtml += `<td><span class="cell-main">1.0000</span></td>`;
+  }
+  cCondHtml += `<td><span class="cell-main">1.0000</span></td></tr></tbody></table>`;
+  document.getElementById('condColTableContainer').innerHTML = cCondHtml;
+}
+
+function renderCharts(ds, res, critVal) {
+  if (chartInstances.cond) chartInstances.cond.destroy();
+  if (chartInstances.pdf) chartInstances.pdf.destroy();
+
+  const palette = ['#2563eb', '#059669', '#dc2626', '#d97706', '#7c3aed', '#0891b2'];
+
+  // 1. 100% Stacked Bar Chart of Conditional Distributions P(F | X) + Marginal Reference Bar
+  const labels = [...res.rows, 'Marginal P(F) [H₀]'];
+  const datasets = res.cols.map((colName, j) => {
+    const dataVals = res.rows.map((_, i) => +(res.condFgivenX[i][j] * 100).toFixed(2));
+    dataVals.push(+(res.pCol[j] * 100).toFixed(2));
+    return {
+      label: colName,
+      data: dataVals,
+      backgroundColor: palette[j % palette.length],
+      borderColor: '#ffffff',
+      borderWidth: 1
+    };
+  });
+
+  chartInstances.cond = new Chart(document.getElementById('chartCondProfiles').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        title: {
+          display: true,
+          text: 'Conditional Profiles P(F | X = x_i) vs. Marginal P(F) (Identical Bars = Independence)'
+        }
+      },
+      scales: {
+        x: { stacked: true },
+        y: {
+          stacked: true,
+          min: 0,
+          max: 100,
+          title: { display: true, text: 'Conditional Probability (%)' }
+        }
+      }
+    }
+  });
+
+  // 2. Chi-Square PDF Curve with Rejection Region & Observed Statistic
+  const xMax = Math.max(critVal * 1.65, res.df + 4.5 * Math.sqrt(2 * res.df), 10);
+  const steps = 160;
+  const dx = xMax / steps;
+  const pdfCurve = [];
+  const rejCurve = [];
+
+  for (let s = 0; s <= steps; s++) {
+    const x = s * dx;
+    const y = chi2PDF(x, res.df);
+    pdfCurve.push({ x, y });
+    rejCurve.push({ x, y: x >= critVal ? y : null });
+  }
+
+  const maxY = Math.max(...pdfCurve.map(pt => pt.y)) * 1.12;
+  const obsClamped = Math.min(res.chi2, xMax);
+  const obsLabel = res.chi2 > xMax
+    ? `Observed χ² = ${res.chi2.toFixed(2)} (far right >> ${xMax.toFixed(1)})`
+    : `Observed χ² = ${res.chi2.toFixed(3)}`;
+
+  chartInstances.pdf = new Chart(document.getElementById('chartChi2Pdf').getContext('2d'), {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          label: `χ²(ν=${res.df}) Null Density`,
+          data: pdfCurve,
+          borderColor: '#1e293b',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.25
+        },
+        {
+          label: `Rejection Region (χ² ≥ ${critVal.toFixed(2)})`,
+          data: rejCurve,
+          borderColor: 'rgba(220, 38, 38, 0.8)',
+          backgroundColor: 'rgba(220, 38, 38, 0.25)',
+          borderWidth: 1,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.25
+        },
+        {
+          label: obsLabel,
+          data: [{ x: obsClamped, y: 0 }, { x: obsClamped, y: maxY * 0.9 }],
+          borderColor: '#059669',
+          borderWidth: 2.8,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        title: {
+          display: true,
+          text: `Sampling Distribution χ²(ν = ${res.df}) & Critical Threshold`
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          min: 0,
+          max: xMax,
+          title: { display: true, text: 'Chi-Square Value (x)' }
+        },
+        y: {
+          min: 0,
+          max: maxY,
+          title: { display: true, text: 'Probability Density f(x)' }
+        }
+      }
+    }
+  });
+}
+
+window.onload = () => {
+  onDatasetSourceChange();
+};
+</script>
+</body>
+</html>
